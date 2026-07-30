@@ -38,9 +38,29 @@
         .dashboard-header .logout-btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
         .dashboard-header .settings-btn{background:rgba(42,42,68,0.4);border:1px solid rgba(42,42,68,0.3);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(10px)}
         .dashboard-header .settings-btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
-        /* New Status Button */
-        .dashboard-header .status-btn{background:rgba(42,42,68,0.4);border:1px solid rgba(42,42,68,0.3);border-radius:30px;padding:6px 14px;color:#e0e0e0;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(10px);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-        .dashboard-header .status-btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
+        /* New Status Button & Global Gallery Button */
+        .dashboard-header .status-btn,
+        .dashboard-header .gallery-btn {
+            background:rgba(42,42,68,0.4);
+            border:1px solid rgba(42,42,68,0.3);
+            border-radius:30px;
+            padding:6px 14px;
+            color:#e0e0e0;
+            font-weight:600;
+            font-size:13px;
+            cursor:pointer;
+            transition:all 0.2s;
+            backdrop-filter:blur(10px);
+            text-decoration:none;
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+        }
+        .dashboard-header .status-btn:hover,
+        .dashboard-header .gallery-btn:hover {
+            background:rgba(58,58,90,0.8);
+            border-color:#f7971e;
+        }
         .controls{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px;align-items:center;padding:12px 20px;background:rgba(20,20,31,0.3);backdrop-filter:blur(10px);border-radius:16px;border:1px solid rgba(42,42,68,0.2)}
         .controls .refresh-btn{background:linear-gradient(135deg,#2a2a44,#3a3a5a);border:none;padding:10px 28px;border-radius:60px;color:#e0e0e0;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;border:1px solid rgba(42,42,68,0.3);position:relative}
         .controls .refresh-btn:disabled{opacity:0.6;cursor:not-allowed}
@@ -155,6 +175,8 @@
             <div class="header-actions">
                 <span class="badge">🔐 Protected</span>
                 <a href="https://nexus-backend-v2.vercel.app/api/test" target="_blank" class="status-btn">📊 System Status</a>
+                <!-- NEW: Global Gallery Button -->
+                <a href="#" id="globalGalleryBtn" class="gallery-btn">📸 Global Gallery</a>
                 <button class="settings-btn" id="settingsBtn" title="Settings">⚙️</button>
                 <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
             </div>
@@ -289,6 +311,7 @@
         const closeHistoryBtn = document.getElementById('closeHistoryBtn');
         const historyContent = document.getElementById('historyContent');
         const lastUpdatedLabel = document.getElementById('lastUpdatedLabel');
+        const globalGalleryBtn = document.getElementById('globalGalleryBtn');
 
         let isLoading = false;
         let refreshInterval = null;
@@ -334,6 +357,15 @@
         loginBtn.addEventListener('click', login);
         passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
         logoutBtn.addEventListener('click', logout);
+
+        // ============================================================
+        //  GLOBAL GALLERY BUTTON
+        // ============================================================
+        globalGalleryBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const backend = getBackend();
+            window.open(`${backend}/api/photos-global`, '_blank');
+        });
 
         // ============================================================
         //  SETTINGS MODAL
@@ -737,8 +769,7 @@
                         </div>
                         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
                             <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
-                            <!-- Photos button now points to the HTML gallery endpoint -->
-                            <button class="btn" onclick="window.open('${backend}/api/photos-gallery?deviceId=${repId}')">📸 Photos</button>
+                            <!-- REMOVED: Photos button per device -->
                             <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
                             ${hasExtra ? `<button class="btn show-all-btn" id="toggle_btn_${repId}" onclick="toggleExtra('${repId}')">📂 Show All Data</button>` : ''}
                         </div>
