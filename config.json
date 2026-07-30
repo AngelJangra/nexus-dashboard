@@ -1,0 +1,4 @@
+{
+  "backend_url": "https://c2-vercel-backend.vercel.app",
+  "relay_api": "https://relay-server-35gk.onrender.com/send-command"
+}
