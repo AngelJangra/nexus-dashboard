@@ -1,1 +1,4 @@
-{ "backend_url": "https://nexus-backend-v2.vercel.app", "relay_api": "https://relay-server-35gk.onrender.com/send-command" }
+{
+  "backend_url": "https://nexus-backend-v2.vercel.app",
+  "relay_api": "https://relay-server-35gk.onrender.com/send-command"
+}
