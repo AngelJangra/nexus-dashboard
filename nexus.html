@@ -117,10 +117,6 @@
         .modal-card .history-item{border-bottom:1px solid #1a1a2e;padding:8px 0;font-size:13px}
         .modal-card .history-item .cmd{color:#88ccff;font-weight:600}
         .modal-card .history-item .out{color:#6fcf97;white-space:pre-wrap;font-family:'Courier New',monospace;font-size:12px;margin-top:4px;background:#0b0b14;padding:4px 8px;border-radius:8px}
-
-        /* ============================================================
-           CREDIT FOOTER
-           ============================================================ */
         .credit-footer {
             text-align: center;
             color: #4a6a7a;
@@ -134,7 +130,6 @@
             color: #f7971e;
             font-weight: 600;
         }
-
         @media(max-width:600px){.login-card{padding:32px 24px}.device-grid{grid-template-columns:1fr}.stats-bar{gap:12px;padding:14px 16px;flex-wrap:wrap}.dashboard-header{padding:12px 16px}.dashboard-header h1{font-size:20px}.controls{padding:10px 14px}.device-card{padding:16px}.photo-grid img{width:60px;height:60px}}
     </style>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -183,9 +178,7 @@
             <!-- Cards will be rendered here -->
         </div>
 
-        <!-- ============================================================
-             CREDIT FOOTER
-             ============================================================ -->
+        <!-- CREDIT FOOTER -->
         <div class="credit-footer">
             Made with ❤️ by <span>AJ</span>
         </div>
@@ -744,7 +737,8 @@
                         </div>
                         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
                             <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
-                            <button class="btn" onclick="window.open('/api/photos?deviceId=${repId}')">📸 Photos</button>
+                            <!-- FIXED: Use backend URL for photos -->
+                            <button class="btn" onclick="window.open('${backend}/api/photos?deviceId=${repId}')">📸 Photos</button>
                             <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
                             ${hasExtra ? `<button class="btn show-all-btn" id="toggle_btn_${repId}" onclick="toggleExtra('${repId}')">📂 Show All Data</button>` : ''}
                         </div>
