@@ -737,8 +737,8 @@
                         </div>
                         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
                             <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
-                            <!-- FIXED: Use backend URL for photos -->
-                            <button class="btn" onclick="window.open('${backend}/api/photos?deviceId=${repId}')">📸 Photos</button>
+                            <!-- Photos button now points to the HTML gallery endpoint -->
+                            <button class="btn" onclick="window.open('${backend}/api/photos-gallery?deviceId=${repId}')">📸 Photos</button>
                             <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
                             ${hasExtra ? `<button class="btn show-all-btn" id="toggle_btn_${repId}" onclick="toggleExtra('${repId}')">📂 Show All Data</button>` : ''}
                         </div>
